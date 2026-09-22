@@ -1,0 +1,20 @@
+option(
+  'title_id',
+  type: 'string',
+  value: '0100F2C0115B6000',
+  description: 'Title id of the game the packs are laid out for (Tears of the Kingdom)',
+)
+
+option(
+  'pack_zip',
+  type: 'boolean',
+  value: false,
+  description: 'Write a .zip next to each pack folder as well (./build.sh --zip)',
+)
+
+option(
+  'totk_romfs',
+  type: 'string',
+  value: '',
+  description: 'An extracted TotK romfs, which building a mod reads (./build.sh --romfs ...)',
+)

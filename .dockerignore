@@ -1,0 +1,4 @@
+# The Dockerfile copies nothing: the repository is mounted when the image runs.
+# Ignoring everything keeps `docker build` from sending it as build context —
+# which would mean minutes of upload and gigabytes of output/ and release/.
+*

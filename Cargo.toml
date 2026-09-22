@@ -1,0 +1,26 @@
+# The Rust half of the repository: the merger plugin, the crates it shares
+# with the others, and the example plugins.
+#
+# totk-mod-manager/core is left out on purpose: it is built for another target
+# (aarch64-unknown-none, no_std, as a static library linked into the homebrew)
+# and keeps a workspace of its own.
+
+[workspace]
+resolver = "2"
+members = [
+    "totk-mod-merger-plugin",
+    "sharedlibs/totk-formats",
+    "sharedlibs/totk-merge",
+    "sharedlibs/totk-mod-merger-api",
+    "plugins/enemy-hp",
+    "plugins/online-example",
+]
+exclude = ["totk-mod-manager/core"]
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+lto = true
+opt-level = 3

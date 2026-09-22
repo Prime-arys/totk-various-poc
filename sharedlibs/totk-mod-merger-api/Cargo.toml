@@ -1,0 +1,8 @@
+[package]
+name = "totk-mod-merger-api"
+version = "0.1.0"
+edition = "2021"
+description = "Rust bindings for totk-mod-merger-plugin's tkm_* API, for other Skyline plugins"
+
+[dependencies]
+skyline = "0.6.0"

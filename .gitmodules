@@ -1,0 +1,6 @@
+[submodule "totk-mod-manager/library/borealis"]
+	path = totk-mod-manager/library/borealis
+	url = https://github.com/xfangfang/borealis
+[submodule "utils/TkSharp"]
+	path = utils/TkSharp
+	url = https://github.com/TKMM-Team/TkSharp

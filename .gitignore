@@ -1,0 +1,20 @@
+# The build writes in exactly two places, and neither belongs in git:
+#
+#   output/    everything transient — meson, cargo, cmake, make, .NET
+#   release/   what is finished: the packs, the plugins, the mods
+/output/
+/release/
+
+# What a part's own toolchain leaves behind if it is ever run by hand, outside
+# the repository's build (which keeps all of this in output/).
+/target/
+/skyline-totk/build/
+/skyline-totk/out/
+/skyline-totk/*.elf
+/skyline-totk/*.nso
+/totk-mod-manager/build/
+/totk-mod-manager/*.nro
+/totk-mod-manager/core/target/
+/utils/tkmm-oracle/bin/
+/utils/tkmm-oracle/obj/
+*.nro

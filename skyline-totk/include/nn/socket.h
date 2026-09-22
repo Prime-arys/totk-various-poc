@@ -1,0 +1,42 @@
+/**
+ * @file socket.h
+ * @brief Functions for opening sockets for wireless communication.
+ */
+
+#pragma once
+
+#include <sys/socket.h>
+
+#include "types.h"
+
+namespace nn {
+namespace socket {
+    struct InAddr {
+        u32 addr;
+    };
+
+class Config;
+    Result Initialize(void* pool, ulong poolSize, ulong allocPoolSize, int concurLimit);
+    Result Initialize(nn::socket::Config const&);
+    Result Finalize();
+    s32 SetSockOpt(s32 socket, s32 socketLevel, s32 option, void const*, u32 len);
+    u64 Send(s32 socket, void const* buffer, u64 bufferLength, s32 flags);
+    s32 Socket(s32 domain, s32 type, s32 proto);
+    u16 InetHtons(u16);
+    u32 InetAton(const char* str, InAddr*);
+    u32 Connect(s32 socket, const sockaddr* addr, u32 addrLen);
+    u32 Bind(s32 socket, const sockaddr* addr, u32 addrLen);
+    u32 Listen(s32 socket, s32 backlog);
+    u32 Accept(s32 socket, sockaddr* addrOut, u32* addrLenOut);
+    s32 Close(s32 socket);
+    s32 Shutdown(s32 socket, s32 how);
+
+    struct PollFd {
+        s32 fd;
+        s16 events;
+        s16 revents;
+    };
+
+    s32 Poll(PollFd* fds, u64 nfds, s32 timeout);
+};  // namespace socket
+};  // namespace nn

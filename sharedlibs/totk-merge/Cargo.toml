@@ -1,0 +1,15 @@
+[package]
+name = "totk-merge"
+version = "0.1.0"
+edition = "2021"
+description = "Mod discovery and merging for Tears of the Kingdom, independent of where it runs"
+
+[features]
+default = ["std"]
+# Without it the crate is no_std + alloc (see totk-formats' `sys` module).
+std = ["totk-formats/std"]
+
+[dependencies]
+totk-formats = { path = "../totk-formats", default-features = false }
+hashbrown = { version = "0.15", default-features = false, features = ["default-hasher", "inline-more"] }
+foldhash = { version = "0.1", default-features = false }

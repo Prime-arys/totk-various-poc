@@ -1,0 +1,15 @@
+[package]
+name = "online-example"
+version = "0.1.0"
+edition = "2021"
+description = "Example Skyline plugin forcing a downloaded mod pack through totk-mod-merger-plugin's API"
+
+[package.metadata.skyline]
+titleid = "0100F2C0115B6000"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+skyline = "0.6.0"
+totk-mod-merger-api = { path = "../../sharedlibs/totk-mod-merger-api" }

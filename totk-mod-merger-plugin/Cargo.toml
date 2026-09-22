@@ -1,0 +1,16 @@
+[package]
+name = "totk-mod-merger-plugin"
+version = "0.1.0"
+authors = []
+edition = "2021"
+description = "On-console mod merger for The Legend of Zelda: Tears of the Kingdom"
+
+[package.metadata.skyline]
+titleid = "0100F2C0115B6000"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+skyline = "0.6.0"
+totk-merge = { path = "../sharedlibs/totk-merge" }

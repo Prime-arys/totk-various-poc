@@ -1,0 +1,31 @@
+[package]
+name = "totk-manager-core"
+version = "0.1.0"
+edition = "2021"
+description = "What totk-mod-manager needs from the merger, as a C library: mods, profiles, installs and merges"
+
+# Not part of the plugin's workspace: this one is built for the homebrew.
+[workspace]
+
+[lib]
+crate-type = ["staticlib"]
+
+[features]
+default = []
+# PC builds of the manager (for trying the interface without a console).
+# Switch builds leave it off: the library is then no_std and uses libnx
+# through the tkm_host_* functions of source/core/host.cpp.
+std = ["totk-merge/std"]
+
+[dependencies]
+totk-merge = { path = "../../sharedlibs/totk-merge", default-features = false }
+
+[profile.release]
+panic = "abort"
+opt-level = 3
+lto = true
+codegen-units = 1
+debug = false
+
+[profile.dev]
+panic = "abort"

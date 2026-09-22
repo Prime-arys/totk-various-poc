@@ -1,0 +1,16 @@
+[package]
+name = "enemy-hp"
+version = "0.1.0"
+edition = "2021"
+description = "Example mod plugin: reports how much life the merged game gives its enemies"
+
+[package.metadata.skyline]
+titleid = "0100F2C0115B6000"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+skyline = "0.6.0"
+totk-formats = { path = "../../sharedlibs/totk-formats" }
+totk-mod-merger-api = { path = "../../sharedlibs/totk-mod-merger-api" }

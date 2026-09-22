@@ -1,0 +1,6 @@
+# The build runs in a Linux container that reads this working tree through a
+# bind mount, so every text file keeps LF endings whatever the platform it is
+# checked out on. A CR at the end of a line breaks things, and not always
+# loudly: the shebang of a script ("bad interpreter"), a recipe in a Makefile,
+# a linker script, a gcc specs file.
+* text=auto eol=lf

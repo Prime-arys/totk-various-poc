@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Reference implementation used to check the Rust merger against TKMM itself.
+    Builds against TkSharp, which this repository carries as the submodule
+    external/TkSharp. Another checkout can be used with -p:TkSharpRoot=...
+    (meson: -Dtksharp=...).
+  -->
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>tkmm-oracle</AssemblyName>
+    <TkSharpRoot Condition="'$(TkSharpRoot)' == ''">$(MSBuildThisFileDirectory)..\TkSharp</TkSharpRoot>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(TkSharpRoot)\TkSharp\TkSharp.csproj" />
+    <ProjectReference Include="$(TkSharpRoot)\TkSharp.Core\TkSharp.Core.csproj" />
+    <ProjectReference Include="$(TkSharpRoot)\TkSharp.Merging\TkSharp.Merging.csproj" />
+    <ProjectReference Include="$(TkSharpRoot)\TkSharp.Packaging\TkSharp.Packaging.csproj" />
+    <ProjectReference Include="$(TkSharpRoot)\TkSharp.Data.Embedded\TkSharp.Data.Embedded.csproj" />
+  </ItemGroup>
+
+</Project>

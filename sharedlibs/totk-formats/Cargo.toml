@@ -1,0 +1,19 @@
+[package]
+name = "totk-formats"
+version = "0.1.0"
+edition = "2021"
+description = "Tears of the Kingdom file formats (SARC, RSTB, zstd, BYML) used by the on-console merger"
+
+[features]
+default = ["std"]
+# Without it the crate is no_std + alloc, and file access goes through the
+# tkm_host_* functions the host program provides (see src/sys.rs).
+std = []
+
+[dependencies]
+ruzstd = { version = "0.7", default-features = false }
+miniz_oxide = { version = "0.7", default-features = false, features = ["with-alloc"] }
+hashbrown = { version = "0.15", default-features = false, features = ["default-hasher", "inline-more"] }
+foldhash = { version = "0.1", default-features = false }
+
+[dev-dependencies]
