@@ -182,6 +182,7 @@ State loadState()
         mod.folder      = str(entry, "folder");
         mod.name        = str(entry, "name");
         mod.kind        = str(entry, "kind");
+        mod.type        = str(entry, "type");
         mod.path        = str(entry, "path");
         mod.version     = str(entry, "version");
         mod.author      = str(entry, "author");
@@ -216,6 +217,7 @@ ModDetails loadDetails(const std::string& folder)
     ModDetails details;
     details.folder      = str(root, "folder");
     details.kind        = str(root, "kind");
+    details.type        = str(root, "type");
     details.name        = str(root, "name");
     details.version     = str(root, "version");
     details.author      = str(root, "author");

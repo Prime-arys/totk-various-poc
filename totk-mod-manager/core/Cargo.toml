@@ -1,6 +1,6 @@
 [package]
 name = "totk-manager-core"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "What totk-mod-manager needs from the merger, as a C library: mods, profiles, installs and merges"
 

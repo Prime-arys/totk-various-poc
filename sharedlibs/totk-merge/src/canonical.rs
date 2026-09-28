@@ -115,11 +115,42 @@ pub enum Root {
     Extras,
 }
 
+/// The file name of a code patch laid out the way Atmosphère reads them,
+/// `atmosphere/exefs_patches/<patch>/<build id>.ips` — or without the leading
+/// `atmosphere/`, as some archives ship them. Only the patch files themselves:
+/// Atmosphère does not look deeper, nor at anything but `.ips` (`.pchtxt` is
+/// accepted as well, since it says the same thing).
+pub fn exefs_patch_file(relative: &str) -> Option<&str> {
+    let relative = relative.trim_start_matches('/');
+    let mut parts = relative.split('/');
+    let mut first = parts.next()?;
+    if first.eq_ignore_ascii_case("atmosphere") {
+        first = parts.next()?;
+    }
+    if !first.eq_ignore_ascii_case("exefs_patches") {
+        return None;
+    }
+    let _patch = parts.next()?;
+    let name = parts.next()?;
+    if parts.next().is_some() || name.is_empty() {
+        return None;
+    }
+    let lower = name.to_ascii_lowercase();
+    (lower.ends_with(".ips") || lower.ends_with(".pchtxt")).then_some(name)
+}
+
 /// Splits "romfs/Pack/Foo.pack.zs" into its root and canonical name, like
 /// TkPath.FromPath. `None` for anything outside the four roots.
+///
+/// Code patches in Atmosphère's own layout (see [`exefs_patch_file`]) count
+/// as `exefs`: a mod shipped as `atmosphere/exefs_patches/...` is a patch
+/// like any other, only packaged for Atmosphère rather than for TKMM.
 pub fn from_mod_path(relative: &str) -> Option<(Root, CanonicalPath)> {
     let relative = relative.replace('\\', "/");
     let relative = relative.trim_start_matches('/');
+    if let Some(name) = exefs_patch_file(relative) {
+        return Some((Root::Exefs, get_canonical(name)));
+    }
     let (first, rest) = relative.split_once('/')?;
     let root = match first.to_ascii_lowercase().as_str() {
         "romfs" => Root::Romfs,
@@ -191,5 +222,21 @@ mod tests {
         assert!(from_mod_path("notes/readme.txt").is_none());
         assert_eq!(extension("Pack/Actor/Foo.pack"), ".pack");
         assert_eq!(extension("RSDB/Tag.Product.rstbl.byml"), ".byml");
+    }
+
+    #[test]
+    fn reads_atmosphere_patch_layout() {
+        // Ultrahand42, as it is distributed.
+        let (root, path) = from_mod_path("atmosphere/exefs_patches/Ultrahand42/9B4E43650501A4D4.ips").unwrap();
+        assert_eq!(root, Root::Exefs);
+        assert_eq!(path.canonical, "9B4E43650501A4D4.ips");
+        // Without atmosphere/, and a pchtxt.
+        assert_eq!(exefs_patch_file("exefs_patches/Foo/abc.pchtxt"), Some("abc.pchtxt"));
+        assert_eq!(exefs_patch_file("Atmosphere\\exefs_patches/Foo/ABC.IPS".replace('\\', "/").as_str()), Some("ABC.IPS"));
+        // Anything Atmosphère would not read either.
+        assert!(exefs_patch_file("atmosphere/exefs_patches/Foo/readme.txt").is_none());
+        assert!(exefs_patch_file("atmosphere/exefs_patches/Foo/deeper/abc.ips").is_none());
+        assert!(exefs_patch_file("atmosphere/exefs_patches/abc.ips").is_none());
+        assert!(exefs_patch_file("atmosphere/contents/0100F2C0115B6000/exefs/main.npdm").is_none());
     }
 }

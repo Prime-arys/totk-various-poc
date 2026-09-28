@@ -64,6 +64,17 @@ console y plante au lancement.
 
 La page d'un mod (**Y**) permet aussi de choisir directement sa position dans la liste.
 
+Chaque ligne dit ce qu'est le mod, d'après ce que contient son dossier :
+
+| Affiché | Le mod contient |
+|---|---|
+| Paquet TKMM | un `.tkcl` |
+| Dossier romfs/exefs | des fichiers du jeu dans `romfs/`, avec éventuellement des patchs de code ou un plugin |
+| Romfs | une racine romfs : les dossiers du jeu (`Pack/`, `RSDB/`…) directement dans le dossier du mod |
+| Patchs de code (IPS) | seulement des patchs de code : `exefs/*.ips`/`*.pchtxt`, ou `atmosphere/exefs_patches/…` |
+| Code (plugin) | seulement des plugins Skyline (`plugin.nro`) |
+| Code exefs (non chargé) | seulement des exécutables exefs (`subsdk9`, `main.npdm`) : ils remplaceraient skyline-totk, donc rien de ce mod ne tourne |
+
 Les changements (activation, ordre, options, profil) sont enregistrés immédiatement sur la carte SD.
 Tant qu'ils ne sont pas appliqués, l'onglet Mods affiche « Changements à appliquer » ; s'ils ne le
 sont jamais, le plugin fusionnera au démarrage du jeu comme avant (ou gardera l'ancienne fusion si
@@ -168,7 +179,12 @@ romfs nu). S'il y en a plusieurs (variantes), le manager demande lequel installe
 et se place **en tête du profil actif**. Réinstaller le même mod le met à jour en gardant ses
 réglages. Les `plugin.nro` du mod sont installés avec lui. Un avertissement signale le code exefs
 (`subsdk`, `main.npdm`…), que le merger ignore : ce code doit être fourni en plugin pour être
-chargé.
+chargé. Il vaut aussi pour les paquets TKMM, dont les options embarquent parfois ce genre de code.
+
+Les archives rangées pour les patchs de code d'Atmosphère
+(`atmosphere/exefs_patches/<nom>/<build id>.ips`, comme Ultrahand42 est distribué) s'installent
+aussi, présentées comme *Patchs de code (IPS)* : chaque dossier nommé est une variante, et ses
+fichiers `.ips`/`.pchtxt` deviennent le `exefs/` du mod.
 
 ### Réglages
 

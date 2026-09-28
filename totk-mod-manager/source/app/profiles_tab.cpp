@@ -60,7 +60,7 @@ void ProfilesTab::build()
     list->clearViews();
 
     list->addView(ui::header("app/profiles/title"_i18n));
-    list->addView(ui::paragraph("app/profiles/explanation"_i18n, 18, true));
+    list->addView(ui::hint("app/profiles/explanation"_i18n, 18, true));
 
     for (const std::string& name : state.profiles)
     {

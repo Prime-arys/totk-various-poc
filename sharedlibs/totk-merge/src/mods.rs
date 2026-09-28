@@ -235,6 +235,50 @@ pub fn plugin_files(dir: &str) -> Vec<String> {
     found
 }
 
+/// Whether `dir` holds code patches the way Atmosphère reads them
+/// (`atmosphere/exefs_patches/<patch>/<build id>.ips`, or `exefs_patches/...`
+/// without the `atmosphere` folder). Such a mod is nothing but patches: no
+/// romfs, no exefs folder, and it has to be recognised all the same.
+fn holds_exefs_patches(dir: &str, entries: &[fs::Entry]) -> bool {
+    // Names are matched without regard to case: the SD card does not care,
+    // and archives write "Atmosphere" as often as "atmosphere".
+    let child = |entries: &[fs::Entry], name: &str| {
+        entries
+            .iter()
+            .find(|entry| entry.is_dir && entry.name.eq_ignore_ascii_case(name))
+            .map(|entry| entry.name.clone())
+    };
+    let mut bases = Vec::new();
+    if let Some(atmosphere) = child(entries, "atmosphere") {
+        let atmosphere = path::join(dir, &atmosphere);
+        if let Ok(inside) = fs::read_dir(&atmosphere) {
+            if let Some(patches) = child(&inside, "exefs_patches") {
+                bases.push(path::join(&atmosphere, &patches));
+            }
+        }
+    }
+    if let Some(patches) = child(entries, "exefs_patches") {
+        bases.push(path::join(dir, &patches));
+    }
+    bases.iter().any(|base| {
+        fs::read_dir(base).map_or(false, |patches| {
+            patches.iter().filter(|entry| entry.is_dir).any(|patch| {
+                fs::read_dir(&path::join(base, &patch.name)).map_or(false, |files| {
+                    files.iter().any(|file| {
+                        !file.is_dir && (has_extension(&file.name, ".ips") || has_extension(&file.name, ".pchtxt"))
+                    })
+                })
+            })
+        })
+    })
+}
+
+/// Whether a mod folder holds code patches laid out for Atmosphère (see
+/// `holds_exefs_patches`), for callers that have not listed it already.
+pub fn has_exefs_patches(dir: &str) -> bool {
+    fs::read_dir(dir).map_or(false, |entries| holds_exefs_patches(dir, &entries))
+}
+
 /// A romfs root has the game's top-level folders.
 fn looks_like_romfs(entries: &[fs::Entry]) -> bool {
     const ROMFS_FOLDERS: [&str; 8] = ["Pack", "RSDB", "GameData", "Mals", "Banc", "Component", "UI", "Model"];
@@ -278,6 +322,9 @@ fn inspect_entries(dir: &str, entries: &[fs::Entry]) -> Option<(ModKind, String)
         .iter()
         .any(|entry| entry.is_dir && (entry.name.eq_ignore_ascii_case("romfs") || entry.name.eq_ignore_ascii_case("exefs")))
     {
+        return Some((ModKind::Folder, dir.to_string()));
+    }
+    if holds_exefs_patches(dir, entries) {
         return Some((ModKind::Folder, dir.to_string()));
     }
     if looks_like_romfs(&entries) {
@@ -324,7 +371,10 @@ pub fn scan(config: &Config) -> (Vec<InstalledMod>, Vec<String>) {
             continue;
         }
         let Some((kind, content)) = inspect_folder(&dir) else {
-            problems.push(format!("'{}' ignored: no romfs or exefs folder, and no .tkcl file", entry.name));
+            problems.push(format!(
+                "'{}' ignored: no romfs or exefs folder, no .tkcl file, no atmosphere/exefs_patches and no plugin.nro",
+                entry.name
+            ));
             continue;
         };
         // Plugins sit next to `romfs`, which for a mod unpacked one folder
@@ -544,7 +594,10 @@ pub fn content_fingerprint(spec: &ModSpec) -> String {
                 // merged: editing them must not call for a new merge.
                 let top = file.split('/').next().unwrap_or("");
                 let merged = match spec.kind {
-                    ModKind::Folder => file.contains('/') && (top.eq_ignore_ascii_case("romfs") || top.eq_ignore_ascii_case("exefs")),
+                    ModKind::Folder => {
+                        (file.contains('/') && (top.eq_ignore_ascii_case("romfs") || top.eq_ignore_ascii_case("exefs")))
+                            || crate::canonical::exefs_patch_file(&file).is_some()
+                    }
                     _ => !file.eq_ignore_ascii_case(MOD_INI),
                 };
                 if !merged {
@@ -599,6 +652,12 @@ mod tests {
         write("mods/Code only/plugin.nro");
         write("mods/Empty/readme.txt");
         write("mods/Loose.tkcl");
+        // Code patches only, laid out for Atmosphère (Ultrahand42 is shipped
+        // exactly like this), and the same unpacked one folder deeper.
+        write("mods/Ultrahand42/atmosphere/exefs_patches/Ultrahand42/9B4E43650501A4D4.ips");
+        write("mods/Unpacked/ultrahand42_switch/Atmosphere/exefs_patches/Limit/9B4E43650501A4D4.ips");
+        // Not a patch: Atmosphère only reads .ips there.
+        write("mods/Not a patch/atmosphere/exefs_patches/Foo/readme.txt");
 
         let mut config = Config::default();
         config.mods_dir = format!("{}/mods", root);
@@ -614,9 +673,12 @@ mod tests {
                 ("Folder", ModKind::Folder, "Folder"),
                 ("Nested", ModKind::Folder, "Nested/Nested Mod (v2)"),
                 ("Package", ModKind::Package, "Package/Package.tkcl"),
+                ("Ultrahand42", ModKind::Folder, "Ultrahand42"),
+                ("Unpacked", ModKind::Folder, "Unpacked/ultrahand42_switch"),
             ]
         );
-        assert_eq!(problems.len(), 2, "{:?}", problems);
+        // Empty, Loose.tkcl and "Not a patch".
+        assert_eq!(problems.len(), 3, "{:?}", problems);
 
         let plugins = |folder: &str| {
             let plugins = &installed.iter().find(|m| m.folder == folder).unwrap().plugins;

@@ -57,6 +57,15 @@ Un mod rangé un dossier plus bas (`Mon Mod/Mon Mod v2/romfs`, comme beaucoup d'
 décompressent) est aussi trouvé. Un `.tkcl` posé en vrac dans `mods/` est ignoré (le log l'indique ;
 totk-mod-manager le range dans un dossier à son lancement).
 
+**Les patchs de code empaquetés pour Atmosphère** sont lus tels quels : un dossier de mod qui
+contient `atmosphere/exefs_patches/<nom>/<build id>.ips` (ou `exefs_patches/...` sans
+`atmosphere/`) est un mod, dont les patchs comptent comme son `exefs/`. Le nom du fichier n'a
+besoin que de *commencer* par le build id du jeu, comme le lit Atmosphère : `9B4E43650501A4D4.ips`,
+les 16 chiffres habituels, correspond à la 1.2.1 (`9b4e43650501a4d4489b…`). Les fichiers IPS sont
+lus sous leurs deux formes (`IPS32` et le `PATCH` d'origine), avec des enregistrements de toute
+longueur et des enregistrements RLE ; un enregistrement qui ne couvre qu'une partie d'une
+instruction est écarté, et le journal le dit.
+
 La fusion n'a lieu qu'au premier démarrage avec une combinaison de mods jamais fusionnée ; ensuite
 le résultat est réutilisé tel quel (démarrage instantané). `force_merge = 1` ou la suppression de
 `merged/` la relance. Avec totk-mod-manager, elle se fait dans le homebrew et le jeu démarre
@@ -317,8 +326,12 @@ coût CPU sur la console, un peu plus volumineux sur la SD.
   fichiers BNTX complets fonctionnent, le plus prioritaire gagne).
 - **Correction des matériaux `.bfres.mc`** que TKMM applique pour les shaders de la 1.4 : inutile
   en 1.2.1, non portée.
-- **Code** (`subsdk*`, `main` d'un `exefs`) et **cheats** : ignorés. Les mods de code doivent être
-  des plugins Skyline — c'est justement ce qui leur permet de coexister.
+- **Code** (`subsdk*`, `main` d'un `exefs`) et **cheats** : ignorés, avec un avertissement qui
+  compte dans le bilan de la fusion. Un `subsdk9` prendrait la place de skyline-totk : les mods de
+  code doivent être des plugins Skyline ou des patchs `.ips`/`.pchtxt` — c'est justement ce qui
+  leur permet de coexister. Certains paquets livrent ce genre de code en option (l'*Ultrahand
+  Override* de Dream Home Limit++, par exemple) : cette option ne fait rien ici, et
+  totk-mod-manager le signale à l'installation du mod.
 - La vérification « fichier identique à une ancienne version » de TKMM (liste de sommes de
   contrôle de 13 Mo) n'est pas embarquée : un mod dossier construit pour une version antérieure du
   jeu est comparé à la version installée.

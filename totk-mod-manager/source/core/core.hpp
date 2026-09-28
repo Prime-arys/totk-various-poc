@@ -18,7 +18,10 @@ struct Mod
 {
     std::string folder;
     std::string name;
-    std::string kind; // "folder", "package" or "romfs"
+    std::string kind; // how it is merged: "folder", "package" or "romfs"
+    /** What it is, to show: "package", "romfs", "folder", "patches", "code"
+     *  or "exefs" (see install::mod_type in the core). */
+    std::string type;
     std::string path;
     std::string version;
     std::string author;
@@ -98,6 +101,7 @@ struct ModDetails
 {
     std::string folder;
     std::string kind;
+    std::string type; // as Mod::type
     std::string name;
     std::string version;
     std::string author;

@@ -234,6 +234,7 @@ pub extern "C" fn tkmc_state() -> *mut c_char {
         } else {
             path::join(&installed.path, &installed.info.thumbnail)
         };
+        let mod_type = install::mod_type(installed.kind, &installed.content, !installed.plugins.is_empty());
         json.begin_object()
             .field_str("folder", &installed.folder)
             .field_str("name", installed.name())
@@ -250,8 +251,10 @@ pub extern "C" fn tkmc_state() -> *mut c_char {
             // Skyline plugins the mod ships, and whether they are loaded.
             .field_num("plugins", installed.plugins.len() as i64)
             .field_bool("load_plugins", installed.info.load_plugins)
-            // A mod that is only code: nothing of it is merged.
-            .field_bool("code_only", !installed.plugins.is_empty() && !has_files(installed));
+            // What it is, for the interface (see install::mod_type), and
+            // whether it is only code: nothing of it is merged.
+            .field_str("type", mod_type)
+            .field_bool("code_only", mod_type == "code");
         json.end_object();
     }
     json.end_array();
@@ -275,16 +278,6 @@ pub extern "C" fn tkmc_is_applied() -> bool {
     engine::is_plan_merged(&config, &plan)
 }
 
-/// Whether a mod holds anything the merge uses, as opposed to code only.
-fn has_files(installed: &mods::InstalledMod) -> bool {
-    match installed.kind {
-        ModKind::Folder => {
-            fs::is_dir(&path::join(&installed.content, "romfs")) || fs::is_dir(&path::join(&installed.content, "exefs"))
-        }
-        _ => true,
-    }
-}
-
 fn group_type(kind: OptionGroupType) -> &'static str {
     match kind {
         OptionGroupType::Multi => "multi",
@@ -295,7 +288,7 @@ fn group_type(kind: OptionGroupType) -> &'static str {
 }
 
 /// A mod's details, with a package's option groups:
-/// `{"name", "version", "author", "description", "kind", "option_groups": [{"name",
+/// `{"name", "version", "author", "description", "kind", "type", "option_groups": [{"name",
 /// "description", "type", "options": [{"name", "description"}], "defaults": [0]}]}`.
 #[no_mangle]
 pub unsafe extern "C" fn tkmc_mod_details(folder: *const c_char) -> *mut c_char {
@@ -310,7 +303,10 @@ pub unsafe extern "C" fn tkmc_mod_details(folder: *const c_char) -> *mut c_char 
         return c_string(json.finish());
     };
     let info = ModInfo::load(&path::join(&dir, mods::MOD_INI));
-    json.field_str("kind", kind.as_str()).field_str("content", &content);
+    let plugins = !mods::plugin_files(&dir).is_empty() || (content != dir && !mods::plugin_files(&content).is_empty());
+    json.field_str("kind", kind.as_str())
+        .field_str("type", install::mod_type(kind, &content, plugins))
+        .field_str("content", &content);
 
     let mut name = info.name.clone().unwrap_or_else(|| folder.to_string());
     let mut version = info.version.clone();
@@ -546,14 +542,17 @@ pub extern "C" fn tkmc_conflicts() -> *mut c_char {
 // --- installing ------------------------------------------------------------------
 
 /// What an extracted archive holds:
-/// `{"candidates": [{"kind", "path", "label", "has_code", "size"}]}`.
+/// `{"candidates": [{"kind", "path", "label", "has_code", "size"}]}`, `kind` being
+/// "package", "folder", "romfs", or "patches" for an Atmosphère patch folder.
 #[no_mangle]
 pub unsafe extern "C" fn tkmc_find_mods(dir: *const c_char) -> *mut c_char {
     let mut json = Json::new();
     json.begin_object().array_field("candidates");
     for candidate in install::find_candidates(text(dir)) {
         json.begin_object()
-            .field_str("kind", candidate.kind.as_str())
+            // "patches" is not a kind of mod, only of what to install: it
+            // becomes a folder mod with an exefs/.
+            .field_str("kind", if candidate.patches { "patches" } else { candidate.kind.as_str() })
             .field_str("path", &candidate.path)
             .field_str("label", &candidate.label)
             .field_bool("has_code", candidate.has_code)
@@ -584,6 +583,7 @@ pub unsafe extern "C" fn tkmc_install(
     thumbnail: *const c_char,
 ) -> *mut c_char {
     let config = Config::load();
+    let patches = text(kind) == "patches";
     let kind = match text(kind) {
         "package" => ModKind::Package,
         "romfs" => ModKind::Romfs,
@@ -602,6 +602,7 @@ pub unsafe extern "C" fn tkmc_install(
         InstallRequest {
             source: text(source),
             kind,
+            patches,
             folder: text(folder),
             info,
             thumbnail: (!thumbnail.is_empty()).then_some(thumbnail),

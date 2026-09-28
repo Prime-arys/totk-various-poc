@@ -57,6 +57,14 @@ A mod one folder lower (`My Mod/My Mod v2/romfs`, the way many archives extract)
 `.tkcl` dropped loose in `mods/` is ignored (the log says so; totk-mod-manager moves it into a
 folder when it starts).
 
+**Code patches packaged for Atmosphère** are read as they are: a mod folder holding
+`atmosphere/exefs_patches/<name>/<build id>.ips` (or `exefs_patches/...` without `atmosphere/`)
+is a mod, whose patches count as its `exefs/`. The file name only needs to *start* with the game's
+build id, as Atmosphère reads it: `9B4E43650501A4D4.ips`, the usual 16 digits, matches 1.2.1
+(`9b4e43650501a4d4489b…`). IPS files are read in both flavours (`IPS32` and the original `PATCH`),
+with records of any length and run-length records; a record covering only part of an instruction
+is left out, and the log says so.
+
 The merge only happens on the first boot with a combination of mods never merged before;
 afterwards the result is reused as is (an instant boot). `force_merge = 1`, or deleting `merged/`,
 starts it again. With totk-mod-manager, it happens in the homebrew and the game starts straight
@@ -312,8 +320,11 @@ larger on the SD card.
 - **Texture changelogs `__Combined.bntx`** in a `.tkcl`: ignored with a warning (complete BNTX
   files work, the highest priority one wins).
 - **The `.bfres.mc` material fix** TKMM applies for the 1.4 shaders: useless in 1.2.1, not ported.
-- **Code** (`subsdk*`, the `main` of an `exefs`) and **cheats**: ignored. Code mods have to be
-  Skyline plugins — which is exactly what lets them coexist.
+- **Code** (`subsdk*`, the `main` of an `exefs`) and **cheats**: ignored, with a warning that
+  counts in the merge's report. A `subsdk9` would take skyline-totk's place: code mods have to be
+  Skyline plugins or `.ips`/`.pchtxt` patches — which is exactly what lets them coexist. Some
+  packages ship such code as an option (Dream Home Limit++'s *Ultrahand Override*, for instance):
+  that option does nothing here, and totk-mod-manager says so when installing the mod.
 - TKMM's "file identical to an older version" check (a 13 MB list of checksums) is not carried: a
   folder mod built for an earlier version of the game is compared against the installed version.
 

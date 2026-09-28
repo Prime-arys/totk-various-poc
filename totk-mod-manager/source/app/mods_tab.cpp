@@ -33,7 +33,7 @@ ModsTab::ModsTab()
     hintLabel->setFontSize(15);
     hintLabel->setText("app/mods/hint"_i18n);
     hintLabel->setTextColor(brls::Application::getTheme()["brls/header/subtitle"]);
-    hintLabel->setMargins(0, 40, 4, 40);
+    hintLabel->setMargins(6, 40, 4, 40);
     this->addView(hintLabel);
 
     ui::ScrollList scroll = ui::scrollList();
@@ -201,7 +201,7 @@ void ModsTab::updateRow(size_t index)
     std::string subtitle = "#" + std::to_string(index + 1) + "  ·  ";
     // What it is comes first: the marker for the code a mod ships has to be
     // visible, and a long subtitle gets cut.
-    subtitle += mod->codeOnly ? "app/mods/kind_code"_i18n : app::kindLabel(mod->kind);
+    subtitle += app::kindLabel(mod->type);
     if (mod->plugins > 0 && !mod->codeOnly)
         subtitle += "  ·  " + "app/mods/plugin"_i18n;
     if (mod->plugins > 0 && !(mod->loadPlugins && state.modPlugins))

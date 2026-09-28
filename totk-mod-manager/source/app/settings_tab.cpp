@@ -121,7 +121,7 @@ SettingsTab::SettingsTab()
     auto* atBoot = new brls::BooleanCell();
     atBoot->init("app/settings/merge_at_boot"_i18n, state.mergeAtBoot, [](bool on) { setFlag("merge_at_boot", on); });
     list->addView(atBoot);
-    list->addView(ui::paragraph("app/settings/merge_at_boot_hint"_i18n, 16, true));
+    list->addView(ui::hint("app/settings/merge_at_boot_hint"_i18n, 16, true));
 
     auto* patches = new brls::BooleanCell();
     patches->init("app/settings/patches"_i18n, state.applyPatches, [](bool on) { setFlag("apply_patches", on); });
@@ -130,14 +130,14 @@ SettingsTab::SettingsTab()
     auto* modPlugins = new brls::BooleanCell();
     modPlugins->init("app/settings/mod_plugins"_i18n, state.modPlugins, [](bool on) { setFlag("mod_plugins", on); });
     list->addView(modPlugins);
-    list->addView(ui::paragraph("app/settings/mod_plugins_hint"_i18n, 16, true));
+    list->addView(ui::hint("app/settings/mod_plugins_hint"_i18n, 16, true));
 
     const app::Preferences& preferences = app::preferences();
     auto* warn = new brls::BooleanCell();
     warn->init("app/settings/warn_conflicts"_i18n, preferences.warnConflicts,
         [](bool on) { setPreference("warn_conflicts", on ? "1" : "0"); });
     list->addView(warn);
-    list->addView(ui::paragraph("app/settings/warn_conflicts_hint"_i18n, 16, true));
+    list->addView(ui::hint("app/settings/warn_conflicts_hint"_i18n, 16, true));
 
     std::vector<std::string> localeLabels;
     std::string detected = detectedLocale();
@@ -164,7 +164,7 @@ SettingsTab::SettingsTab()
         app::reload(app::Merge::Check);
     });
     list->addView(locales);
-    list->addView(ui::paragraph("app/settings/locales_hint"_i18n, 16, true));
+    list->addView(ui::hint("app/settings/locales_hint"_i18n, 16, true));
 
     int cacheIndex = 0;
     std::vector<std::string> cacheLabels;
@@ -188,7 +188,7 @@ SettingsTab::SettingsTab()
     cacheUsage->setDetailText("app/browse/loading"_i18n);
     cacheUsage->setFocusable(false);
     list->addView(cacheUsage);
-    list->addView(ui::paragraph("app/settings/cache_hint"_i18n, 16, true));
+    list->addView(ui::hint("app/settings/cache_hint"_i18n, 16, true));
     auto usage = std::make_shared<core::CacheUsage>();
     ASYNC_RETAIN
     worker::run([usage]() { *usage = core::mergeCacheUsage(); },
@@ -240,12 +240,12 @@ SettingsTab::SettingsTab()
         plugin));
     bool romfsFolder = exists("sdmc:/atmosphere/contents/0100F2C0115B6000/romfs");
     if (romfsFolder)
-        list->addView(ui::paragraph("app/settings/layeredfs_warning"_i18n, 16));
+        list->addView(ui::hint("app/settings/layeredfs_warning"_i18n, 16));
     std::string mode = game::runsAsTotk() ? "app/settings/mode_override"_i18n
         : game::isApplication()           ? "app/settings/mode_application"_i18n
                                           : "app/settings/mode_applet"_i18n;
     list->addView(infoCell("app/settings/mode"_i18n, mode, game::runsAsTotk()));
-    list->addView(ui::paragraph("app/settings/mode_hint"_i18n, 16, true));
+    list->addView(ui::hint("app/settings/mode_hint"_i18n, 16, true));
 
     list->addView(ui::header("app/settings/maintenance"_i18n));
     auto* clear = new ui::ListRow(false);
@@ -264,7 +264,7 @@ SettingsTab::SettingsTab()
     list->addView(clear);
 
     list->addView(ui::header("app/settings/about"_i18n));
-    list->addView(ui::paragraph(brls::getStr("app/settings/about_text", APP_VERSION), 16, true));
+    list->addView(ui::hint(brls::getStr("app/settings/about_text", APP_VERSION), 16, true));
 }
 
 void SettingsTab::buildBoost(brls::Box* list)
@@ -280,24 +280,24 @@ void SettingsTab::buildBoost(brls::Box* list)
                 setPreference("boost", BOOST_VALUES[selected]);
         });
     list->addView(mode);
-    list->addView(ui::paragraph("app/settings/boost_hint"_i18n, 16, true));
+    list->addView(ui::hint("app/settings/boost_hint"_i18n, 16, true));
 
     sysclk::Info clocks = sysclk::query();
     if (!clocks.running)
     {
-        list->addView(ui::paragraph("app/settings/sysclk_missing"_i18n, 16));
+        list->addView(ui::hint("app/settings/sysclk_missing"_i18n, 16));
         return;
     }
     if (clocks.cpu.empty() || clocks.memory.empty())
     {
         // An older sys-clk: it cannot list its clocks, it rounds to the
         // nearest one.
-        list->addView(ui::paragraph(brls::getStr("app/settings/sysclk_old", clocks.apiVersion,
+        list->addView(ui::hint(brls::getStr("app/settings/sysclk_old", clocks.apiVersion,
                                         preferences.boostCpuMhz, preferences.boostMemoryMhz),
             16));
         return;
     }
     list->addView(frequencyCell("app/settings/sysclk_cpu"_i18n, clocks.cpu, preferences.boostCpuMhz, "boost_cpu_mhz"));
     list->addView(frequencyCell("app/settings/sysclk_memory"_i18n, clocks.memory, preferences.boostMemoryMhz, "boost_memory_mhz"));
-    list->addView(ui::paragraph("app/settings/sysclk_hint"_i18n, 16, true));
+    list->addView(ui::hint("app/settings/sysclk_hint"_i18n, 16, true));
 }

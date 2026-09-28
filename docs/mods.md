@@ -58,6 +58,8 @@ totk/mods/My Mod/romfs/...        a mod as a folder (the files as they go into t
 totk/mods/My Mod/My Mod.tkcl      or a TKMM package
 totk/mods/My Mod/mod.ini          optional: name, version, priority
 totk/mods/My Mod/plugin.nro       optional: the code the mod brings
+totk/mods/My Mod/atmosphere/exefs_patches/<name>/<build id>.ips
+                                  or code patches packaged for Atmosphère, read as they are
 ```
 
 The merger reads the enabled mods, merges their files (BYML, SARC, RSTB, MSBT, code patches) and
@@ -87,3 +89,11 @@ cargo run --release -p totk-merge --example compare_merge -- /romfs <mods...>
 The other examples in [`sharedlibs/totk-merge/examples/`](../sharedlibs/totk-merge/examples)
 replay the reading of the game's formats on a PC: `enemy_hp`, `armor_effects`, `byml_print`,
 `sarc_list`, `msbt_dump`…
+
+When a package does not do what it should, `tkcl_contents` lists what it really holds — the files
+it changes, its code patches and the build they target, and any exefs code (`subsdk9`,
+`main.npdm`) that cannot run next to skyline-totk:
+
+```bash
+cargo run --release -p totk-merge --example tkcl_contents -- "/mods/My Mod.tkcl"
+```

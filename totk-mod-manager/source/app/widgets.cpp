@@ -43,7 +43,8 @@ ListRow::ListRow(bool withImage, float imageWidth, float imageHeight)
     subtitle = new brls::Label();
     subtitle->setFontSize(16);
     subtitle->setSingleLine(true);
-    subtitle->setMarginTop(6);
+    // Room enough under a 22 pt title for the subtitle not to look glued to it.
+    subtitle->setMarginTop(10);
     subtitle->setTextColor(brls::Application::getTheme()["brls/header/subtitle"]);
     texts->addView(subtitle);
     this->addView(texts);
@@ -63,7 +64,7 @@ ListRow::ListRow(bool withImage, float imageWidth, float imageHeight)
     note = new brls::Label();
     note->setFontSize(15);
     note->setSingleLine(true);
-    note->setMarginTop(6);
+    note->setMarginTop(10);
     note->setHorizontalAlign(brls::HorizontalAlign::RIGHT);
     note->setVisibility(brls::Visibility::GONE);
     side->addView(note);
@@ -107,6 +108,13 @@ brls::Label* paragraph(const std::string& text, float fontSize, bool dim)
     label->setMarginBottom(12);
     if (dim)
         label->setTextColor(brls::Application::getTheme()["brls/header/subtitle"]);
+    return label;
+}
+
+brls::Label* hint(const std::string& text, float fontSize, bool dim)
+{
+    brls::Label* label = paragraph(text, fontSize, dim);
+    label->setMarginTop(8);
     return label;
 }
 

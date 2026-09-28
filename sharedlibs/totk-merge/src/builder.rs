@@ -637,38 +637,84 @@ pub fn zstd_dictionary_id(data: &[u8]) -> i32 {
 
 const NSO_HEADER_LENGTH: u32 = 0x100;
 
-/// TkPatch.FromIps: IPS32 patches of 4 byte values.
+/// An IPS patch, as Atmosphère reads them from `exefs_patches`: either flavour
+/// (`IPS32`, 4-byte offsets ending on `EEOF`; the original `PATCH`, 3-byte
+/// offsets ending on `EOF`), records of any length, and run-length records
+/// (a size of 0, then a count and the byte to repeat). Offsets count from the
+/// start of the NSO file, whose header is 0x100 bytes.
+///
+/// A patch is kept as 4-byte words (what TKMM's changelogs and the plugin work
+/// in), so the bytes written are regrouped into the words they fall in. Bytes
+/// that only cover part of a word cannot be applied without the game's own
+/// bytes around them: those words are left out, and said so in the log.
+///
+/// TKMM (TkPatch.FromIps) only keeps records of exactly 4 bytes and misreads
+/// what follows any other; a patch changing two instructions in one record
+/// would silently lose both.
 pub fn parse_ips(data: &[u8], nso_binary_id: &str) -> Option<Patch> {
-    if data.len() < 5 || &data[..5] != b"IPS32" {
+    let (offset_size, end_marker) = if data.starts_with(b"IPS32") {
+        (4, 0x4545_4F46u32) // "EEOF"
+    } else if data.starts_with(b"PATCH") {
+        (3, 0x0045_4F46u32) // "EOF"
+    } else {
         return None;
-    }
-    let mut patch = Patch {
-        nso_binary_id: nso_binary_id.to_string(),
-        entries: Vec::new(),
     };
-    let mut entries: BTreeMap<u32, u32> = BTreeMap::new();
+
+    let mut bytes: BTreeMap<u32, u8> = BTreeMap::new();
     let mut position = 5;
-    while position + 4 <= data.len() {
-        let address = u32::from_be_bytes(data[position..position + 4].try_into().unwrap());
-        position += 4;
-        if address == 0x4545_4F46 {
+    while let Some(raw) = data.get(position..position + offset_size) {
+        let address = raw.iter().fold(0u32, |value, &byte| (value << 8) | byte as u32);
+        position += offset_size;
+        if address == end_marker {
             break;
         }
         let Some(size) = data.get(position..position + 2).map(|b| u16::from_be_bytes([b[0], b[1]]) as usize) else {
             break;
         };
         position += 2;
-        if size == 4 {
-            if let Some(value) = data.get(position..position + 4) {
-                entries.insert(address.wrapping_sub(NSO_HEADER_LENGTH), u32::from_be_bytes(value.try_into().unwrap()));
+        let start = address.wrapping_sub(NSO_HEADER_LENGTH);
+        if size == 0 {
+            let Some(run) = data.get(position..position + 3) else {
+                break;
+            };
+            let (count, value) = (u16::from_be_bytes([run[0], run[1]]) as u32, run[2]);
+            for i in 0..count {
+                bytes.insert(start.wrapping_add(i), value);
             }
+            position += 3;
+        } else {
+            let Some(chunk) = data.get(position..position + size) else {
+                break;
+            };
+            for (i, &value) in chunk.iter().enumerate() {
+                bytes.insert(start.wrapping_add(i as u32), value);
+            }
+            position += size;
         }
-        // TKMM reads on after a value of another size as if it were 4 bytes
-        // long; stepping over the real size is the only sane reading.
-        position += size;
     }
-    patch.entries = entries.into_iter().collect();
-    Some(patch)
+
+    let mut entries = Vec::new();
+    let mut partial = 0;
+    let mut words: BTreeMap<u32, [Option<u8>; 4]> = BTreeMap::new();
+    for (&address, &value) in &bytes {
+        words.entry(address & !3).or_insert([None; 4])[(address & 3) as usize] = Some(value);
+    }
+    for (address, word) in words {
+        match word {
+            [Some(a), Some(b), Some(c), Some(d)] => entries.push((address, u32::from_be_bytes([a, b, c, d]))),
+            _ => partial += 1,
+        }
+    }
+    if partial > 0 {
+        info!(
+            "{}.ips: {} word(s) only partly written, left out (a patch here is applied a whole instruction at a time)",
+            nso_binary_id, partial
+        );
+    }
+    Some(Patch {
+        nso_binary_id: nso_binary_id.to_string(),
+        entries,
+    })
 }
 
 /// TkPatch.FromPchTxt.
@@ -734,6 +780,57 @@ mod tests {
         ips.extend_from_slice(b"EEOF");
         let patch = parse_ips(&ips, "abc").unwrap();
         assert_eq!(patch.entries, vec![(0x1000, 0xD503_201F)]);
+    }
+
+    #[test]
+    fn reads_every_kind_of_ips_record() {
+        // Two instructions in one record, which TKMM would drop.
+        let mut ips = b"IPS32".to_vec();
+        ips.extend_from_slice(&0x0000_1100u32.to_be_bytes());
+        ips.extend_from_slice(&8u16.to_be_bytes());
+        ips.extend_from_slice(&[0xD5, 0x03, 0x20, 0x1F, 0x1F, 0xAD, 0x00, 0x71]);
+        // A run: 8 bytes of 0x00 from 0x2000 (module offset 0x1f00).
+        ips.extend_from_slice(&0x0000_2000u32.to_be_bytes());
+        ips.extend_from_slice(&0u16.to_be_bytes());
+        ips.extend_from_slice(&8u16.to_be_bytes());
+        ips.push(0x00);
+        // Two bytes only: half an instruction, which cannot be applied alone.
+        ips.extend_from_slice(&0x0000_3000u32.to_be_bytes());
+        ips.extend_from_slice(&2u16.to_be_bytes());
+        ips.extend_from_slice(&[0xAA, 0xBB]);
+        ips.extend_from_slice(b"EEOF");
+        let patch = parse_ips(&ips, "abc").unwrap();
+        assert_eq!(
+            patch.entries,
+            vec![(0x1000, 0xD503_201F), (0x1004, 0x1FAD_0071), (0x1F00, 0), (0x1F04, 0)]
+        );
+
+        // The original IPS format: 3-byte offsets, "EOF".
+        let mut ips = b"PATCH".to_vec();
+        ips.extend_from_slice(&[0x00, 0x11, 0x00]);
+        ips.extend_from_slice(&4u16.to_be_bytes());
+        ips.extend_from_slice(&0xD503_201Fu32.to_be_bytes());
+        ips.extend_from_slice(b"EOF");
+        assert_eq!(parse_ips(&ips, "abc").unwrap().entries, vec![(0x1000, 0xD503_201F)]);
+
+        assert!(parse_ips(b"nothing", "abc").is_none());
+    }
+
+    #[test]
+    fn reads_ultrahand42() {
+        // atmosphere/exefs_patches/Ultrahand42/9B4E43650501A4D4.ips, byte for
+        // byte: six instructions raising the Ultrahand part limit.
+        let ips: &[u8] = &[
+            0x49, 0x50, 0x53, 0x33, 0x32, 0x01, 0x76, 0xff, 0x80, 0x00, 0x04, 0x1f, 0xad, 0x00, 0x71, 0x01,
+            0x65, 0x5b, 0x4c, 0x00, 0x04, 0x1f, 0xad, 0x00, 0x71, 0x00, 0xaf, 0x0e, 0xac, 0x00, 0x04, 0x1f,
+            0xad, 0x00, 0x71, 0x00, 0xff, 0x4d, 0xb8, 0x00, 0x04, 0x3f, 0xad, 0x00, 0x71, 0x00, 0xff, 0x56,
+            0x78, 0x00, 0x04, 0x35, 0xa9, 0x00, 0x51, 0x00, 0xd5, 0xd2, 0x88, 0x00, 0x04, 0x1f, 0xa8, 0x00,
+            0x71, 0x45, 0x45, 0x4f, 0x46,
+        ];
+        let patch = parse_ips(ips, "9B4E43650501A4D4").unwrap();
+        assert_eq!(patch.entries.len(), 6);
+        assert!(patch.entries.contains(&(0x176fe80, 0x1FAD_0071)));
+        assert!(patch.entries.contains(&(0xd5d188, 0x1FA8_0071)));
     }
 
     #[test]

@@ -23,7 +23,7 @@ void addOptionDescription(brls::Box* content, const std::string& description)
     if (description.empty())
         return;
     auto* label = ui::paragraph(description, 15, true);
-    label->setMargins(0, 16, 10, 16);
+    label->setMargins(6, 16, 10, 16);
     content->addView(label);
 }
 } // namespace
@@ -66,9 +66,7 @@ brls::View* ModActivity::createContentView()
             return;
         facts->addView(ui::paragraph(brls::getStr("app/common/labelled", label, value), 18, true));
     };
-    const core::Mod* listed = app::state().findMod(folder);
-    bool codeOnly           = listed && listed->codeOnly;
-    fact("app/details/kind"_i18n, codeOnly ? "app/mods/kind_code"_i18n : app::kindLabel(details.kind));
+    fact("app/details/kind"_i18n, app::kindLabel(details.type));
     fact("app/details/version"_i18n, details.version);
     fact("app/details/author"_i18n, details.author);
     fact("app/details/folder"_i18n, "sd:/totk/mods/" + folder);
@@ -97,7 +95,7 @@ brls::View* ModActivity::createContentView()
         std::string text = details.description;
         if (text.size() > 3000)
             text = text.substr(0, 3000) + "…";
-        content->addView(ui::paragraph(text, 18));
+        content->addView(ui::hint(text, 18));
     }
 
     content->addView(ui::header("app/details/manage"_i18n));
@@ -147,7 +145,7 @@ void ModActivity::buildPlugins(brls::Box* content)
     content->addView(ui::header(brls::getStr("app/details/plugins", details.plugins.size()),
         "app/details/plugins_hint"_i18n));
     for (const std::string& plugin : details.plugins)
-        content->addView(ui::paragraph(plugin, 16, true));
+        content->addView(ui::hint(plugin, 16, true));
 
     auto* load          = new brls::BooleanCell();
     std::string target  = folder;
@@ -159,7 +157,7 @@ void ModActivity::buildPlugins(brls::Box* content)
     });
     content->addView(load);
     if (!app::state().modPlugins)
-        content->addView(ui::paragraph("app/details/plugins_off"_i18n, 16, true));
+        content->addView(ui::hint("app/details/plugins_off"_i18n, 16, true));
 }
 
 void ModActivity::updatePriority()
@@ -218,7 +216,7 @@ void ModActivity::buildConflicts()
         if (app::state().conflicts.empty())
             return;
         conflictsBox->addView(ui::header("app/details/conflicts"_i18n));
-        conflictsBox->addView(ui::paragraph("app/details/no_conflict"_i18n, 16, true));
+        conflictsBox->addView(ui::hint("app/details/no_conflict"_i18n, 16, true));
         return;
     }
 
@@ -282,7 +280,7 @@ void ModActivity::buildConflicts()
         conflictsBox->addView(row);
     }
     if (conflicts.size() > SHOWN)
-        conflictsBox->addView(ui::paragraph(brls::getStr("app/details/more_conflicts", conflicts.size() - SHOWN), 16, true));
+        conflictsBox->addView(ui::hint(brls::getStr("app/details/more_conflicts", conflicts.size() - SHOWN), 16, true));
 }
 
 std::vector<std::string> ModActivity::selectedOptions(const core::OptionGroup& group)
@@ -346,7 +344,7 @@ void ModActivity::buildOptions(brls::Box* content)
             subtitle += " · " + "app/details/required"_i18n;
         content->addView(ui::header(group.name, subtitle));
         if (!group.description.empty())
-            content->addView(ui::paragraph(group.description, 16, true));
+            content->addView(ui::hint(group.description, 16, true));
 
         std::vector<std::string> selected = selectedOptions(group);
         auto isSelected = [&](const std::string& option) {

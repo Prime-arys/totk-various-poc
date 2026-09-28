@@ -106,7 +106,7 @@ void GameBananaActivity::show(std::shared_ptr<gamebanana::Submission> submission
 
     content->addView(ui::header("app/gamebanana/files"_i18n, "app/gamebanana/files_hint"_i18n));
     if (submission->files.empty())
-        content->addView(ui::paragraph("app/gamebanana/no_files"_i18n, 18, true));
+        content->addView(ui::hint("app/gamebanana/no_files"_i18n, 18, true));
 
     for (size_t index = 0; index < submission->files.size(); index++)
     {
@@ -143,7 +143,7 @@ void GameBananaActivity::show(std::shared_ptr<gamebanana::Submission> submission
         std::string text = submission->text;
         if (text.size() > 3000)
             text = text.substr(0, 3000) + "…";
-        content->addView(ui::paragraph(text, 18));
+        content->addView(ui::hint(text, 18));
     }
 
     ui::focusChild(content, 0);

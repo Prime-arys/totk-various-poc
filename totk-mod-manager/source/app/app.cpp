@@ -116,7 +116,7 @@ namespace
 
         auto* list = ui::paragraph(conflictSummary(conflicts), 18);
         box->addView(list);
-        box->addView(ui::paragraph("app/conflicts/rule"_i18n, 16, true));
+        box->addView(ui::hint("app/conflicts/rule"_i18n, 16, true));
 
         auto* dialog = new brls::Dialog(box);
         // An answer is needed: the merge waits for it.
@@ -274,6 +274,12 @@ std::string kindLabel(const std::string& kind)
         return "app/mods/kind_package"_i18n;
     if (kind == "romfs")
         return "app/mods/kind_romfs"_i18n;
+    if (kind == "patches")
+        return "app/mods/kind_patches"_i18n;
+    if (kind == "code")
+        return "app/mods/kind_code"_i18n;
+    if (kind == "exefs")
+        return "app/mods/kind_exefs"_i18n;
     return "app/mods/kind_folder"_i18n;
 }
 

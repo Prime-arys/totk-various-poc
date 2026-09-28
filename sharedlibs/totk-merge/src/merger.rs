@@ -67,6 +67,24 @@ enum Outcome {
 
 pub(crate) const SIZE_OVERRIDE_CANONICAL: &str = "System/Resource/ResourceSizeTable.Product.rsizetable";
 
+/// Whether a patch written for build `patch_id` applies to the game's
+/// `game_id` (40 hex digits for TotK).
+///
+/// Atmosphère names a patch after the build id and compares it as a prefix,
+/// ignoring case: most patches only give the first 16 digits
+/// (`9B4E43650501A4D4.ips` for 1.2.1), and some pad the full 32-byte id with
+/// zeros. TKMM's own patches carry the full id. All three have to match; a
+/// name shorter than 8 digits says too little to be trusted.
+pub(crate) fn build_id_matches(patch_id: &str, game_id: &str) -> bool {
+    let patch = patch_id.trim();
+    if patch.len() < 8 || !patch.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return false;
+    }
+    let game = game_id.trim();
+    let (shared, rest) = patch.split_at(patch.len().min(game.len()));
+    shared.eq_ignore_ascii_case(&game[..shared.len()]) && rest.bytes().all(|b| b == b'0')
+}
+
 /// NSO offsets of the shop parameter limit (TkPatch.CreateWithDefaults).
 fn shop_param_patch_address(nso_binary_id: &str) -> Option<u32> {
     Some(match nso_binary_id.to_ascii_lowercase().as_str() {
@@ -169,11 +187,23 @@ impl<'a> Merger<'a> {
         for changelog in changelogs {
             let code = changelog.subsdk_files.len() + changelog.exe_files.len() + changelog.cheats.len();
             if code > 0 {
-                info!(
-                    "{}: {} code/cheat file(s) ignored — exefs mods need to be Skyline plugins",
+                // A warning, not a note: a mod whose code part silently does
+                // nothing looks broken. `subsdk*`/`main.npdm` replace the
+                // game's exefs, which is Skyline's here, so they cannot run.
+                let mut files: Vec<&str> = changelog
+                    .subsdk_files
+                    .iter()
+                    .chain(changelog.exe_files.iter())
+                    .map(String::as_str)
+                    .collect();
+                if !changelog.cheats.is_empty() {
+                    files.push("cheats");
+                }
+                self.warn(format!(
+                    "{}: its exefs code ({}) is ignored — it would replace skyline-totk; code mods have to be Skyline plugins (plugin.nro) or .ips/.pchtxt patches",
                     changelog.source.describe(),
-                    code
-                );
+                    files.join(", ")
+                ));
                 self.report.ignored_code_files += code;
             }
         }
@@ -217,7 +247,7 @@ impl<'a> Merger<'a> {
 
         for changelog in changelogs {
             for patch in &changelog.patches {
-                if patch.nso_binary_id.eq_ignore_ascii_case(&id) {
+                if build_id_matches(&patch.nso_binary_id, &id) {
                     entries.extend(patch.entries.iter().copied());
                 } else {
                     debug!("patch for another game version ({}) skipped", patch.nso_binary_id);
@@ -918,5 +948,22 @@ mod tests {
         assert_eq!(merger_for("RSDB/Other.Product.rstbl.byml"), Some(MergerKind::Byml));
         assert_eq!(merger_for("Pack/Actor/Foo.pack"), Some(MergerKind::Pack));
         assert_eq!(merger_for("Model/Foo.bfres"), None);
+    }
+
+    #[test]
+    fn patches_match_builds_like_atmosphere() {
+        let game = "9b4e43650501a4d4489b4bbfdb740f26af3cf850"; // 1.2.1
+        // The full id, as TKMM writes it.
+        assert!(build_id_matches(game, game));
+        // The first 16 digits, as Ultrahand42 is named, in capitals.
+        assert!(build_id_matches("9B4E43650501A4D4", game));
+        // The 32-byte id padded with zeros.
+        assert!(build_id_matches("9B4E43650501A4D4489B4BBFDB740F26AF3CF850000000000000000000000000", game));
+        // Another version, or not an id at all.
+        assert!(!build_id_matches("6265F94D606242CE", game));
+        assert!(!build_id_matches("9B4E43650501A4D4489B4BBFDB740F26AF3CF851", game));
+        assert!(!build_id_matches("9B4E43650501A4D4489B4BBFDB740F26AF3CF85001", game));
+        assert!(!build_id_matches("9B4E", game));
+        assert!(!build_id_matches("readme", game));
     }
 }

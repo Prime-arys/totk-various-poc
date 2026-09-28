@@ -372,3 +372,61 @@ fn earlier_merges_come_back_from_the_cache() {
 
     let _ = std::fs::remove_dir_all(&work);
 }
+
+#[test]
+fn atmosphere_patches_are_applied() {
+    let Some(prefix) = romfs() else {
+        eprintln!("skipped: TOTK_VANILLA_DIR unset");
+        return;
+    };
+    totk_merge::set_log_sink(|line| println!("  | {}", line));
+    let rom = TkRom::open(&prefix).unwrap();
+
+    // Ultrahand42 exactly as it is distributed: nothing but
+    // atmosphere/exefs_patches/<name>/<first 16 digits of the build id>.ips.
+    let short_id = rom.nso_binary_id[..16].to_ascii_uppercase();
+    let mut ips = b"IPS32".to_vec();
+    for (offset, value) in [(0x176ff80u32, 0x1FAD_0071u32), (0xd5d288, 0x1FA8_0071)] {
+        ips.extend_from_slice(&offset.to_be_bytes());
+        ips.extend_from_slice(&4u16.to_be_bytes());
+        ips.extend_from_slice(&value.to_be_bytes());
+    }
+    ips.extend_from_slice(b"EEOF");
+
+    let work = scratch("patches");
+    let mod_dir = work.join("mods").join("Ultrahand42");
+    let patch = mod_dir.join("atmosphere/exefs_patches/Ultrahand42").join(format!("{}.ips", short_id));
+    std::fs::create_dir_all(patch.parent().unwrap()).unwrap();
+    std::fs::write(&patch, &ips).unwrap();
+
+    // Found as a mod, with nothing else in it.
+    let content = mod_dir.to_string_lossy().replace('\\', "/");
+    let (kind, path) = totk_merge::mods::classify(&content).expect("an exefs_patches folder is a mod");
+    assert_eq!(kind, ModKind::Folder);
+
+    let mut config = Config::default();
+    config.cache_dir = work.join("cache").to_string_lossy().to_string();
+    config.use_romfslite = false;
+    config.locales = "USen".into();
+    config.shop_param_limit = 0;
+    let plan = Plan {
+        mods: vec![ModSpec {
+            name: "Ultrahand42".into(),
+            kind,
+            path,
+            priority: 0,
+            options: BTreeMap::new(),
+            plugins: Vec::new(),
+        }],
+        merged_dir: work.join("merged").to_string_lossy().to_string(),
+        profile: "test".into(),
+    };
+
+    let outcome = Engine::new(&config, &prefix).run(&plan);
+    assert!(!outcome.failed, "{:?}", outcome.error);
+    // Both instructions, at their offsets in the module (the NSO header is
+    // 0x100 bytes), matched to the game through the short build id.
+    assert_eq!(outcome.patches, vec![(0xd5d188, 0x1FA8_0071), (0x176fe80, 0x1FAD_0071)]);
+
+    let _ = std::fs::remove_dir_all(&work);
+}

@@ -38,6 +38,11 @@ brls::Header* header(const std::string& title, const std::string& subtitle = "")
 /** Wrapping text. */
 brls::Label* paragraph(const std::string& text, float fontSize = 18, bool dim = false);
 
+/** Wrapping text about the element right above it (a cell, a row, a section
+ *  title): a paragraph with a little room over it, so it does not touch that
+ *  element's separator line. Stacked facts stay paragraphs. */
+brls::Label* hint(const std::string& text, float fontSize = 18, bool dim = false);
+
 /** A column inside a scrolling frame, padded like borealis' own lists. */
 struct ScrollList
 {
