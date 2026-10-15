@@ -1,30 +1,44 @@
 #!/usr/bin/env bash
-# Builds the EnemyHp mod: its data, read out of the game's own files and
-# packaged as a .tkcl, plus the plugin that goes with it.
+# Builds one of the repository's mods: its data, read out of the game's own
+# files and packaged as a .tkcl, plus the code that goes with it.
 #
-#   utils/build-enemy-hp-mod.sh --romfs <extracted romfs> [--out <dir>]
+#   utils/build-mod.sh <name> --script <its build-mod.sh> --romfs <extracted romfs> [--out <dir>]
 #
-# The .tkcl is packaged by TKMM's own code (utils/tkmm-oracle, built against
-# the utils/TkSharp submodule). Mods are not part of a pack: drop the result
-# in sd:/totk/mods/EnemyHp/.
+#   EnemyHp     plugins/enemy-hp/build-mod.sh    a .tkcl and a Skyline plugin
+#   EnemyHpSe   mods/enemy-hp-se/build-mod.sh    a .tkcl holding an exefs module
+#
+# What every mod has in common is done here: the .tkcl is packaged by TKMM's
+# own code (utils/tkmm-oracle, built against the utils/TkSharp submodule),
+# which has to be built first. Mods are not part of a pack: drop the result in
+# sd:/totk/mods/<name>/.
 
 set -e
 set -o pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/common.sh"
 
+usage="usage: utils/build-mod.sh <name> --script <build-mod.sh> --romfs <romfs> [--out <dir>]"
+NAME="${1:?$usage}"
+shift
+SCRIPT=""
 ROMFS=""
-OUT="$RELEASE/mods/EnemyHp"
+OUT=""
 while [ $# -gt 0 ]; do
     case "$1" in
+        --script) shift; SCRIPT="$1" ;;
         --romfs) shift; ROMFS="$1" ;;
         --out) shift; OUT="$1" ;;
         *) echo "unknown argument: $1" >&2; exit 2 ;;
     esac
     shift
 done
+[ -n "$OUT" ] || OUT="$RELEASE/mods/$NAME"
+if [ ! -f "$SCRIPT" ]; then
+    echo "$usage" >&2
+    exit 2
+fi
 if [ -z "$ROMFS" ] || [ ! -d "$ROMFS" ]; then
     echo "error: --romfs must point at an extracted TotK romfs." >&2
-    echo "       ./build.sh --romfs /chemin/vers/romfs mod" >&2
+    echo "       ./build.sh --romfs /path/to/romfs mod" >&2
     exit 2
 fi
 
@@ -47,8 +61,25 @@ find_oracle() {
     [ -d "$ARTIFACTS" ] || return 0
     find "$ARTIFACTS" -name tkmm-oracle.dll 2>/dev/null | head -1
 }
+
+# What the packager was built from: every file of the TkSharp submodule and
+# of the tool, by name, size and date. Kept next to the build, so that
+# updating TkSharp builds the packager again instead of packaging mods with
+# the previous TKMM. The files are looked at rather than the submodule's
+# commit: that needs neither git in the image nor git to trust a repository
+# mounted from elsewhere, and it sees a change that is not committed.
+oracle_stamp() {
+    (
+        cd "$ROOT/utils"
+        find TkSharp tkmm-oracle \( -name bin -o -name obj -o -name .git \) -prune \
+            -o -type f -printf '%p %s %T@\n' | sort
+    ) | sha1sum | cut -d' ' -f1
+}
+STAMP_FILE="$ARTIFACTS/tkmm-oracle.stamp"
+STAMP="$(oracle_stamp)"
+
 ORACLE="$(find_oracle)"
-if [ -z "$ORACLE" ]; then
+if [ -z "$ORACLE" ] || [ "$(cat "$STAMP_FILE" 2>/dev/null || true)" != "$STAMP" ]; then
     say "== tkmm-oracle (TKMM's own packager)"
     # Everything here goes through the environment rather than -p:Name=value:
     # the .NET 10 CLI hands that form to MSBuild with its prefix stripped, and
@@ -85,12 +116,13 @@ if [ -z "$ORACLE" ]; then
         echo "error: the build left no tkmm-oracle.dll under $ARTIFACTS" >&2
         exit 1
     fi
+    printf '%s\n' "$STAMP" > "$STAMP_FILE"
 fi
 
 mkdir -p "$OUT"
 OUT="$(cd "$OUT" && pwd)"
 
-say "== EnemyHp"
+say "== $NAME"
 export TKMM_ORACLE="$ORACLE"
-bash "$ROOT/plugins/enemy-hp/build-mod.sh" "$ROMFS" "$OUT"
-say "Copy $OUT to sd:/totk/mods/EnemyHp/"
+bash "$SCRIPT" "$ROMFS" "$OUT"
+say "Copy $OUT to sd:/totk/mods/$NAME/"

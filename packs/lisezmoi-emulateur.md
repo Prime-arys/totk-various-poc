@@ -35,3 +35,10 @@ Ryujinx refuse a été retirée ; la version console plante à son lancement ici
 
 Ensuite comme sur console : activer les mods, **Appliquer**, puis lancer le jeu. Les journaux
 sont dans `sdcard/totk/merger.log` et `sdcard/skyline/totk/skyline.log`.
+
+Un mod qui apporte du code exefs (un module `subsdk`, dans son dossier ou dans son `.tkcl`) se
+range dans `sdcard/totk/mods/` comme les autres : **Appliquer** installe son module dans
+`sdcard/atmosphere/contents/0100F2C0115B6000/exefs/` (`subsdk1`…), que Ryujinx charge en plus du
+mod `skyline-totk`. Ce dossier apparaît comme un mod exefs de plus dans *Gérer les mods* : le
+laisser activé. Le jeu charge les modules à son démarrage : il faut donc appliquer avant de le
+lancer.

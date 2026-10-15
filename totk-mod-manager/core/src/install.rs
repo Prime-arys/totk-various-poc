@@ -15,7 +15,9 @@ pub struct Candidate {
     pub path: String,
     /// Where it sits in the archive ("" for the top), to tell options apart.
     pub label: String,
-    /// Executables TotK mods cannot use through the merger (subsdk, main.npdm).
+    /// It ships modules (`exefs/subsdk`), which the merger installs in the
+    /// title's exefs folder: worth saying, since they only run from the next
+    /// time the game starts.
     pub has_code: bool,
     pub size: u64,
     /// Code patches shipped for Atmosphère (`atmosphere/exefs_patches/<name>/`):
@@ -34,18 +36,20 @@ fn folder_size(dir: &str) -> u64 {
     mods::list_files(dir).iter().map(|(_, size)| size).sum()
 }
 
-/// Whether a TKMM package ships exefs code — `subsdk*`, `main.npdm`, in the mod
-/// itself or in one of its options. TKMM hands those to Atmosphère, which
-/// runs them in place of the game's own exefs; here that exefs is Skyline's,
-/// so they cannot run, and whoever installs the mod should know before
-/// wondering why that part does nothing. Only the package's metadata is read.
+/// A module's name in an exefs folder: `subsdk0` to `subsdk9`.
+fn is_module_name(name: &str) -> bool {
+    name.len() == 7 && name[..6].eq_ignore_ascii_case("subsdk") && name.as_bytes()[6].is_ascii_digit()
+}
+
+/// Whether a TKMM package ships modules — `exefs/subsdk*`, in the mod itself
+/// or in one of its options. The merger installs them the way TKMM lays them
+/// out for Atmosphère (see `totk_merge::code`). Only the package's metadata
+/// is read.
 fn package_has_code(file: &str) -> bool {
     let Ok(package) = totk_merge::tkcl::read_tkcl_file(file) else {
         return false;
     };
-    let ships_code = |changelog: &totk_merge::tkcl::Changelog| {
-        !changelog.subsdk_files.is_empty() || !changelog.exe_files.is_empty()
-    };
+    let ships_code = |changelog: &totk_merge::tkcl::Changelog| !changelog.subsdk_files.is_empty();
     ships_code(&package.changelog)
         || package
             .option_groups
@@ -54,11 +58,9 @@ fn package_has_code(file: &str) -> bool {
             .any(|option| ships_code(&option.changelog))
 }
 
-/// Code files a merger cannot use: anything in exefs but patches.
+/// Whether an exefs folder holds modules.
 fn has_code_files(dir: &str) -> bool {
-    mods::list_files(dir)
-        .iter()
-        .any(|(file, _)| !has_extension(file, ".ips") && !has_extension(file, ".pchtxt") && !file.starts_with('.'))
+    mods::list_files(dir).iter().any(|(file, _)| is_module_name(file))
 }
 
 /// The folder called `name` in `dir`, whatever its case: the SD card does not
@@ -80,10 +82,10 @@ fn child_dir(dir: &str, name: &str) -> Option<String> {
 /// | `romfs`   | a romfs root, its game folders right in the mod folder         |
 /// | `folder`  | game files in `romfs/`, maybe with patches or plugins as well  |
 /// | `patches` | code patches only (`exefs/*.ips`, or Atmosphère's layout)      |
-/// | `code`    | Skyline plugins only (`plugin.nro`)                            |
-/// | `exefs`   | exefs executables only (`subsdk*`, `main.npdm`): they would    |
-/// |           | replace skyline-totk, so the merger ignores them, and the mod  |
-/// |           | does nothing at all — which the list should make plain         |
+/// | `code`    | Skyline plugins (`plugin.nro`), and no game files              |
+/// | `exefs`   | modules only (`exefs/subsdk*`), the way TKMM packages code:    |
+/// |           | installed in the title's exefs folder, where the game loads    |
+/// |           | them when it starts                                            |
 ///
 /// `content` is where the mod's files are (the mod folder, or the folder one
 /// level down it was unpacked into), `plugins` whether it ships any.
@@ -95,13 +97,13 @@ pub fn mod_type(kind: ModKind, content: &str, plugins: bool) -> &'static str {
             if child_dir(content, "romfs").is_some() {
                 return "folder";
             }
-            let (patches, executables) = match child_dir(content, "exefs") {
+            let (patches, modules) = match child_dir(content, "exefs") {
                 Some(exefs) => {
                     let files = mods::list_files(&exefs);
                     let is_patch = |file: &str| has_extension(file, ".ips") || has_extension(file, ".pchtxt");
                     (
                         files.iter().any(|(file, _)| is_patch(file)),
-                        files.iter().any(|(file, _)| !is_patch(file) && !file.starts_with('.')),
+                        files.iter().any(|(file, _)| is_module_name(file)),
                     )
                 }
                 None => (false, false),
@@ -110,7 +112,7 @@ pub fn mod_type(kind: ModKind, content: &str, plugins: bool) -> &'static str {
                 "patches"
             } else if plugins {
                 "code"
-            } else if executables {
+            } else if modules {
                 "exefs"
             } else {
                 "folder"
@@ -610,9 +612,9 @@ mod tests {
             types,
             vec![
                 ("Atmosphere layout", "patches"),
-                // It does nothing: the list has to say so.
+                // A module for the loader, as TKMM packages code.
                 ("Exefs code", "exefs"),
-                // Only its plugin runs.
+                // Both run; the plugin is what the list names.
                 ("Exefs code and plugin", "code"),
                 ("Files", "folder"),
                 ("Files and patches", "folder"),

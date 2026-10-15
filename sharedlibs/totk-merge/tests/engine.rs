@@ -430,3 +430,107 @@ fn atmosphere_patches_are_applied() {
 
     let _ = std::fs::remove_dir_all(&work);
 }
+
+/// A mod's code the way TKMM packages it: `exefs/subsdkN`, next to files of
+/// its own in romfs that the module reads through the game's file system.
+#[test]
+fn modules_follow_the_mods() {
+    let Some(prefix) = romfs() else {
+        eprintln!("TOTK_VANILLA_DIR is not set: skipped");
+        return;
+    };
+    totk_merge::set_log_sink(|line| println!("  | {}", line));
+
+    let module = |seed: u8| {
+        let mut data = vec![seed; 0x400];
+        data[..4].copy_from_slice(b"NSO0");
+        data
+    };
+
+    let work = scratch("code");
+    let folder = |name: &str, seed: u8, setting: &str| {
+        let dir = work.join("mods").join(name);
+        std::fs::create_dir_all(dir.join("exefs")).unwrap();
+        // What an exlaunch mod is made of, under the name they all have.
+        std::fs::write(dir.join("exefs/subsdk9"), module(seed)).unwrap();
+        std::fs::write(dir.join("exefs/main.npdm"), b"META").unwrap();
+        write(&dir, "EnemyHp/Regen.txt", setting.as_bytes());
+        let content = dir.to_string_lossy().replace('\\', "/");
+        let (kind, path) = totk_merge::mods::classify(&content).expect("a mod");
+        ModSpec {
+            name: name.into(),
+            kind,
+            path,
+            priority: 0,
+            options: BTreeMap::new(),
+            plugins: Vec::new(),
+        }
+    };
+    let low = folder("Low", 1, "regen_percent = 1\n");
+    let high = folder("High", 2, "regen_percent = 3\n");
+
+    let exefs = work.join("exefs");
+    // Skyline is already there, and stays.
+    std::fs::create_dir_all(&exefs).unwrap();
+    std::fs::write(exefs.join("subsdk9"), module(9)).unwrap();
+    std::fs::write(exefs.join("main.npdm"), b"SKYLINE").unwrap();
+
+    let mut config = Config::default();
+    config.cache_dir = work.join("cache").to_string_lossy().to_string();
+    config.exefs_dir = exefs.to_string_lossy().to_string();
+    config.use_romfslite = false;
+    config.locales = "USen".into();
+    let plan = |mods: Vec<ModSpec>| Plan {
+        mods,
+        merged_dir: work.join("merged").to_string_lossy().to_string(),
+        profile: "test".into(),
+    };
+    let read = |name: &str| std::fs::read(exefs.join(name)).ok();
+
+    // Lowest priority first in a plan; the mod that wins conflicts gets the
+    // first name, as in TKMM's merged output.
+    let outcome = Engine::new(&config, &prefix).run(&plan(vec![low.clone(), high.clone()]));
+    assert!(!outcome.failed, "{:?}", outcome.error);
+    assert_eq!(outcome.warnings, 0);
+    assert_eq!((outcome.code.len(), outcome.code_installed, outcome.code_changed), (2, 2, true));
+    assert_eq!(read("subsdk1"), Some(module(2)));
+    assert_eq!(read("subsdk2"), Some(module(1)));
+    assert_eq!(read("subsdk9"), Some(module(9)));
+    assert_eq!(read("main.npdm"), Some(b"SKYLINE".to_vec()));
+    // The file the module reads is served like any other, the winner's.
+    let setting = outcome.redirects.get("EnemyHp/Regen.txt").expect("the mod's own file is served");
+    assert_eq!(std::fs::read(setting).unwrap(), b"regen_percent = 3\n");
+
+    // Served again from the merge cache: nothing to write.
+    let outcome = Engine::new(&config, &prefix).run(&plan(vec![low.clone(), high.clone()]));
+    assert!(outcome.reused);
+    assert_eq!((outcome.code_installed, outcome.code_changed), (2, false));
+
+    // One mod turned off: its module goes, the other one stays where it is.
+    let outcome = Engine::new(&config, &prefix).run(&plan(vec![high.clone()]));
+    assert_eq!((outcome.code_installed, outcome.code_changed), (1, true));
+    assert_eq!(read("subsdk1"), Some(module(2)));
+    assert_eq!(read("subsdk2"), None);
+
+    // The setting that keeps them out removes what was installed.
+    config.mod_code = false;
+    let outcome = Engine::new(&config, &prefix).run(&plan(vec![high.clone()]));
+    assert_eq!((outcome.code.len(), outcome.code_installed, outcome.code_changed), (1, 0, true));
+    assert_eq!(read("subsdk1"), None);
+    config.mod_code = true;
+    let outcome = Engine::new(&config, &prefix).run(&plan(vec![high]));
+    assert_eq!((outcome.code_installed, outcome.code_changed), (1, true));
+
+    // No mods at all: the folder is back to what Skyline put there.
+    let outcome = Engine::new(&config, &prefix).run(&plan(Vec::new()));
+    assert_eq!((outcome.code_installed, outcome.code_changed), (0, true));
+    let mut left: Vec<String> = std::fs::read_dir(&exefs)
+        .unwrap()
+        .flatten()
+        .map(|entry| entry.file_name().to_string_lossy().to_string())
+        .collect();
+    left.sort();
+    assert_eq!(left, ["main.npdm", "subsdk9"]);
+
+    let _ = std::fs::remove_dir_all(&work);
+}

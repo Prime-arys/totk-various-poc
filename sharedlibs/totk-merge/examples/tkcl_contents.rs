@@ -1,7 +1,7 @@
 //! What a TKMM package holds, for the mod itself and for each of its options:
 //! the game files it changes, its code patches (which build they target, and
-//! what they write), its cheats, and any exefs code it ships — `subsdk*` and
-//! `main.npdm`, which cannot run next to skyline-totk.
+//! what they write), its cheats, and any exefs code it ships — the `subsdk*`
+//! modules the merger installs next to skyline-totk, and `main.npdm`.
 //!
 //!   cargo run --release -p totk-merge --example tkcl_contents -- <file.tkcl>
 

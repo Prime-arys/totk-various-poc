@@ -20,6 +20,7 @@ pub mod byml_keys;
 pub mod byml_merge;
 pub mod cache;
 pub mod canonical;
+pub mod code;
 pub mod config;
 pub mod conflicts;
 #[cfg(feature = "std")]

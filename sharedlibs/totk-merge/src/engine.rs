@@ -6,9 +6,10 @@ use alloc::collections::BTreeMap;
 
 use crate::builder::build_folder;
 use crate::cache;
+use crate::code::{self, CodeFile};
 use crate::config::{self, Config, Locales};
 use crate::conflicts::{self, ModChanges};
-use crate::merge_cache::{locales_cover, merge_id, CachedMerge, MergeCache, Served, StoreWriter};
+use crate::merge_cache::{locales_cover, merge_id, CachedMerge, MergeCache, Served, StoreWriter, MERGE_VERSION};
 use crate::merger::{MergeOptions, Merger, Output};
 use crate::mods::{content_fingerprint, Fingerprint, ModKind, ModSpec, Plan};
 use crate::prelude::*;
@@ -40,6 +41,15 @@ pub struct Outcome {
     pub cancelled: bool,
     /// Why nothing is served, for whoever shows it to a user.
     pub error: Option<String>,
+    /// The modules (`exefs/subsdk`) the merged mods ship, the mod that wins
+    /// conflicts first.
+    pub code: Vec<CodeFile>,
+    /// How many of them are in the title's exefs folder, for the next time
+    /// the game starts.
+    pub code_installed: usize,
+    /// That folder was changed: a game that is already running keeps the
+    /// modules it was started with.
+    pub code_changed: bool,
 }
 
 impl Outcome {
@@ -97,7 +107,7 @@ pub fn is_plan_merged(config: &Config, plan: &Plan) -> bool {
 /// Languages are not part of it: see [`locales_cover`].
 pub fn plan_fingerprint(config: &Config, plan: &Plan) -> String {
     let mut fingerprint = Fingerprint::default();
-    fingerprint.mix_str(&format!("builder {}", cache::BUILDER_VERSION));
+    fingerprint.mix_str(&format!("builder {} merge {}", cache::BUILDER_VERSION, MERGE_VERSION));
     fingerprint.mix(&config.shop_param_limit.to_le_bytes());
     for spec in &plan.mods {
         fingerprint.mix_str(&spec.name);
@@ -121,7 +131,41 @@ impl<'a> Engine<'a> {
         }
     }
 
+    /// Merges the mods of `plan` (or finds the merge already made of them),
+    /// and leaves the title's exefs folder holding their modules.
     pub fn run(&self, plan: &Plan) -> Outcome {
+        let mut outcome = self.merge(plan);
+        // A merge that failed or was cancelled says nothing about what the
+        // mods ship: what is installed stays as it is.
+        if !outcome.failed && !outcome.cancelled {
+            self.install_code(&mut outcome);
+        }
+        outcome
+    }
+
+    /// Makes the modules in the exefs folder those of the merge served.
+    fn install_code(&self, outcome: &mut Outcome) {
+        if !self.config.mod_code && !outcome.code.is_empty() {
+            info!(
+                "{} module(s) of mods left out: mod_code = 0 in {}",
+                outcome.code.len(),
+                config::CONFIG_PATH
+            );
+        }
+        let wanted: &[CodeFile] = if self.config.mod_code { &outcome.code } else { &[] };
+        let installation = code::install(&self.config.exefs_dir, wanted);
+        outcome.code_installed = installation.installed;
+        outcome.code_changed = installation.changed;
+        outcome.warnings += installation.left_out;
+        if installation.installed > 0 {
+            info!(
+                "code: {} module(s) of mods in {}, loaded when the game starts",
+                installation.installed, self.config.exefs_dir
+            );
+        }
+    }
+
+    fn merge(&self, plan: &Plan) -> Outcome {
         if plan.mods.is_empty() {
             info!("no mods to merge ({})", plan.profile);
             return Outcome::default();
@@ -276,10 +320,16 @@ impl<'a> Engine<'a> {
         };
         let merging = Instant::now();
         let report = Merger::new(&rom, &mut output, options).merge(&changelogs);
+        let named: Vec<(&str, &Changelog)> = changes
+            .iter()
+            .flat_map(|change| change.changelogs.iter().map(move |changelog| (change.name.as_str(), *changelog)))
+            .collect();
+        let modules = code::collect(&named, &mut output.store);
 
         let served = Served {
             redirects: output.redirects,
             patches: report.patches,
+            code: modules.files,
         };
         let merge = CachedMerge {
             id,
@@ -296,7 +346,7 @@ impl<'a> Engine<'a> {
              merging {:.1}s (of which writing packs {:.1}s); {} file(s) written ({} MiB), {} already stored",
             report.files,
             served.redirects.len(),
-            report.warnings,
+            report.warnings + modules.warnings,
             read_seconds + compare_seconds + merging.elapsed_secs(),
             read_seconds,
             compare_seconds,
@@ -313,12 +363,15 @@ impl<'a> Engine<'a> {
             patches: served.patches,
             failed: false,
             merged_files: report.files,
-            warnings: report.warnings,
+            warnings: report.warnings + modules.warnings,
             reused: false,
             from_cache: false,
             conflicts: found.len(),
             cancelled: false,
             error: None,
+            code: served.code,
+            code_installed: 0,
+            code_changed: false,
         }
     }
 
@@ -333,6 +386,7 @@ impl<'a> Engine<'a> {
         Some(Outcome {
             redirects: served.redirects,
             patches: served.patches,
+            code: served.code,
             reused: true,
             ..Outcome::default()
         })

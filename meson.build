@@ -28,6 +28,7 @@ subdir('skyline-totk')            # skyline_exefs, skyline_config
 subdir('totk-mod-merger-plugin')  # merger_nro, merger_config
 subdir('totk-mod-manager')        # manager_nros
 subdir('plugins')                 # enemy_hp_nro, online_example_nro, plugins, mod
+subdir('mods')                    # mod-se, mods
 subdir('packs')                   # pack-switch, pack-emulator, packs
 
 # What the image has, and what it should have: `./build.sh doctor`.
@@ -58,6 +59,8 @@ summary(
     'one of them': './build.sh pack-switch | pack-emulator',
     'the example plugins': './build.sh plugins',
     'the EnemyHp mod': './build.sh --romfs <romfs> mod',
+    'its SE edition (code in the .tkcl)': './build.sh --romfs <romfs> mod-se',
+    'both': './build.sh --romfs <romfs> mods',
     'the toolchain of the image': './build.sh doctor',
     'the tests of the crates': './build.sh test',
     'throwing it all away': './build.sh clean [--all]',

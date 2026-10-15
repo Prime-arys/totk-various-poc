@@ -25,25 +25,27 @@ la compatibilité complète avec les mods existants et avec toutes les fonctions
 | Dossier                                              | Ce que c'est                                                                                                                                                                                                                                         |
 | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | [`skyline-totk/`](skyline-totk/)                     | Skyline adapté à TotK 1.2.1 : l'`exefs` (`subsdk9` + `main.npdm`) qui charge les plugins, avec son journal sur la carte SD, sa mémoire mappée et ses crochets. C++ / devkitPro.                                                                  |
-| [`totk-mod-merger-plugin/`](totk-mod-merger-plugin/) | Le fusionneur : un plugin Skyline qui lit les mods de`sd:/totk/mods`, les fusionne (portage de TKMM) et sert les fichiers au jeu. Il charge aussi le `plugin.nro` que fournit un mod. Rust.                                                          |
+| [`totk-mod-merger-plugin/`](totk-mod-merger-plugin/) | Le fusionneur : un plugin Skyline qui lit les mods de`sd:/totk/mods`, les fusionne (portage de TKMM) et sert les fichiers au jeu. Il fait aussi tourner le code qu'un mod fournit : un `plugin.nro` est chargé tout de suite, un module exefs (`subsdk`, comme TKMM les empaquette) est installé à côté de celui de Skyline pour que la console le charge. Rust. |
 | [`totk-mod-manager/`](totk-mod-manager/)             | Le homebrew (borealis) qui gère mods, profils, options et conflits, lance la fusion et le jeu. C++ pour l'interface, Rust (`core/`) pour la logique partagée.                                                                                      |
 | [`sharedlibs/`](sharedlibs/)                         | Les crates communes :`totk-formats` (SARC, BYML, RSTB, zstd), `totk-merge` (découverte des mods et fusion), `totk-mod-merger-api` (l'API `tkm_*` pour les autres plugins). Elles se compilent avec ou sans `std`, pour la console comme pour le PC. |
 | [`plugins/`](plugins/)                               | Deux plugins d'exemple :`enemy-hp` (le code du mod EnemyHp : PV des ennemis, régénération) et `online-example` (impose au fusionneur un pack téléchargé depuis un PC).                                                                         |
+| [`mods/`](mods/)                                     | `enemy-hp-se` : l'édition SE d'EnemyHp, un seul `.tkcl` dont le code est un module exefs (C++, construit avec exlaunch) et dont les réglages sont les options du paquet. Il s'importe aussi dans TKMM.                                             |
 | [`packs/`](packs/)                                   | La description des deux packs et les notices qu'ils emportent.                                                                                                                                                                                       |
-| [`utils/`](utils/)                                   | Les scripts que Meson appelle dans le conteneur,`tkmm-oracle` (le packageur de TKMM) et le sous-module `TkSharp`.                                                                                                                                    |
+| [`utils/`](utils/)                                   | Les scripts que Meson appelle dans le conteneur,`tkmm-oracle` (le packageur de TKMM) et les sous-modules `TkSharp` et `exlaunch`.                                                                                                                    |
 | [`docs/`](docs/)                                     | La construction, et les mods.                                                                                                                                                                                                                        |
 
 Les emprunts, les portages et les références sont listés dans **[CREDITS.fr.md](CREDITS.fr.md)** —
 Skyline, borealis, TKMM/TkSharp et les autres.
 
-Le code tiers arrive par **deux sous-modules git**, que `build.sh` récupère tout seul s'ils
+Le code tiers arrive par **trois sous-modules git**, que `build.sh` récupère tout seul s'ils
 manquent :
 
 
 | Sous-module                                       | Où                                 | Version épinglée      | Pour quoi                                                                                            |
 | --------------------------------------------------- | ------------------------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------ |
 | [borealis](https://github.com/xfangfang/borealis) | `totk-mod-manager/library/borealis` | `5f08b286` (2026-04-25) | l'interface du homebrew (son CMake l'attend là)                                                     |
-| [TkSharp](https://github.com/TKMM-Team/TkSharp)   | `utils/TkSharp`                     | `be46b9ad` (2026-09-15) | le code de TKMM, que`utils/tkmm-oracle` exécute pour empaqueter les `.tkcl` et comparer les fusions |
+| [TkSharp](https://github.com/TKMM-Team/TkSharp)   | `utils/TkSharp`                     | `2e0e9b51` (2026-10-13) | le code de TKMM, que`utils/tkmm-oracle` exécute pour empaqueter les `.tkcl` et comparer les fusions |
+| [exlaunch](https://github.com/shadowninja108/exlaunch) | `utils/exlaunch`               | `f9f4b0dd` (2026-08-26) | le cadre avec lequel est construit le module exefs d'EnemyHp SE                                      |
 
 Chaque sous-module est figé sur le commit avec lequel tout a été construit et vérifié : un clone
 reprend exactement ces versions-là, sans suivre la branche amont.
@@ -70,6 +72,7 @@ git clone <ce dépôt> && cd totk-various-poc
 ./build.sh pack-switch              # un seul des deux
 ./build.sh plugins                  # enemy-hp.nro, online-example.nro → release/plugins/
 ./build.sh --romfs <dossier> mod    # le mod EnemyHp → release/mods/EnemyHp/
+./build.sh --romfs <dossier> mod-se # son édition SE, un seul .tkcl → release/mods/EnemyHpSe/
 ./build.sh test                     # les tests des crates qui tournent sur PC
 ./build.sh doctor                   # ce que contient l'image
 ./build.sh shell                    # un shell dans le conteneur
@@ -94,6 +97,7 @@ sd:/
 │           ├───exefs                                  # l'exefs de skyline-totk
 │           │       main.npdm
 │           │       subsdk9
+│           │       subsdk1                            # le module exefs d'un mod, posé là par le fusionneur
 │           │
 │           └───skyline
 │               └───plugins
@@ -115,6 +119,8 @@ sd:/
         │       plugin.nro
         │       mod.ini
         │       enemy-hp.ini
+        ├───EnemyHpSe                                  # le même mod, code et réglages dans le paquet
+        │       EnemyHpSe.tkcl
         └───OtherExample
                 romfs/
                 thumbnail.jpg

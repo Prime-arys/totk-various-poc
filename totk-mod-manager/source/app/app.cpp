@@ -175,6 +175,12 @@ namespace
             text = brls::getStr("app/apply/up_to_date", result.mods, result.served);
         else
             text = brls::getStr("app/apply/done", result.mods, result.files, result.seconds);
+        // The modules of mods are for the system loader: worth a line, since
+        // they are the one part of a mod that needs the game started again.
+        if (result.code > 0)
+            text += "\n" + brls::getStr("app/apply/code", result.code);
+        else if (result.codeChanged)
+            text += "\n" + "app/apply/code_removed"_i18n;
         if (result.conflicts > 0)
             text += "\n" + brls::getStr("app/apply/conflicts", result.conflicts);
         if (result.warnings > 0)

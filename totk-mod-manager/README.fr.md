@@ -72,8 +72,8 @@ Chaque ligne dit ce qu'est le mod, d'après ce que contient son dossier :
 | Dossier romfs/exefs | des fichiers du jeu dans `romfs/`, avec éventuellement des patchs de code ou un plugin |
 | Romfs | une racine romfs : les dossiers du jeu (`Pack/`, `RSDB/`…) directement dans le dossier du mod |
 | Patchs de code (IPS) | seulement des patchs de code : `exefs/*.ips`/`*.pchtxt`, ou `atmosphere/exefs_patches/…` |
-| Code (plugin) | seulement des plugins Skyline (`plugin.nro`) |
-| Code exefs (non chargé) | seulement des exécutables exefs (`subsdk9`, `main.npdm`) : ils remplaceraient skyline-totk, donc rien de ce mod ne tourne |
+| Code (plugin) | des plugins Skyline (`plugin.nro`), et aucun fichier du jeu |
+| Code (module exefs) | seulement des modules exefs (`exefs/subsdk9`), le code tel que TKMM l'empaquette : installés à côté de Skyline quand les mods sont appliqués, chargés au démarrage du jeu |
 
 Les changements (activation, ordre, options, profil) sont enregistrés immédiatement sur la carte SD.
 Tant qu'ils ne sont pas appliqués, l'onglet Mods affiche « Changements à appliquer » ; s'ils ne le
@@ -126,21 +126,39 @@ dans l'overlay. Le manager ne cherche sys-clk que s'il est installé
 
 ### Mods avec du code
 
-Un mod peut contenir un `plugin.nro` (ou plusieurs dans un dossier `plugins/`) à côté de son
-`romfs`, voire n'être que cela. Le plugin du jeu les charge une fois la fusion servie, dans l'ordre
-des mods : c'est ce qui permet à plusieurs mods de code de coexister, là où une console n'a qu'un
-seul `exefs`, déjà occupé par Skyline.
+Un mod apporte du code de l'une de deux façons.
+
+**En plugin Skyline.** Un mod peut contenir un `plugin.nro` (ou plusieurs dans un dossier
+`plugins/`) à côté de son `romfs`, voire n'être que cela. Le plugin du jeu les charge une fois la
+fusion servie, dans l'ordre des mods.
 
 - L'onglet Mods affiche « plugin » sur ces mods, et « Code (plugin) » pour ceux qui n'ont aucun
   fichier à fusionner.
 - La page du mod (**Y**) liste les `.nro` fournis et permet de ne pas charger ce code
   (`plugins = 0` dans son `mod.ini`) tout en gardant ses fichiers.
-- Paramètres → *Charger le code fourni par les mods* désactive le chargement pour tous les mods
-  (`mod_plugins` dans `config.ini`) — à utiliser si un mod fait planter le jeu.
+- Paramètres → *Charger les plugins fournis par les mods* désactive le chargement pour tous les
+  mods (`mod_plugins` dans `config.ini`) — à utiliser si un mod fait planter le jeu.
 
 Ces réglages ne changent pas la fusion : ils sont lus par le plugin au démarrage du jeu, il n'y a
 donc rien à appliquer. Écrire un tel plugin : voir le README du merger (section *Mods avec du
 code*) et son exemple `plugins/enemy-hp`.
+
+**En module exefs.** C'est ce que TKMM appelle le code d'un mod : un `exefs/subsdk9` dans le
+dossier du mod ou dans son `.tkcl`, en général construit avec exlaunch (l'option *Ultrahand
+Override* de *Dream Home Limit++*, ou le `EnemyHpSe.tkcl` de ce dépôt). Un module est chargé par la
+console elle-même au démarrage du jeu, donc la fusion l'**installe** : « Appliquer » laisse les
+modules des mods activés dans `atmosphere/contents/0100F2C0115B6000/exefs/` sous les noms
+`subsdk1`, `subsdk2`…, à côté du `subsdk9` de Skyline, et retire ceux des mods désactivés. Le
+résultat dit combien sont en place.
+
+- **Appliquez avant de lancer le jeu.** Un mod activé sans appliquer est quand même fusionné au
+  démarrage du jeu, mais son module n'est installé qu'à ce moment-là, et tourne à partir du
+  démarrage suivant.
+- L'option choisie dans un paquet décide du module installé, comme du reste de ses fichiers.
+- Paramètres → *Installer le code exefs fourni par les mods* le désactive pour tous les mods
+  (`mod_code` dans `config.ini`) et retire ce qui était installé au prochain « Appliquer » — à
+  utiliser si un mod empêche le jeu de démarrer. Les fichiers que le manager n'a pas posés dans ce
+  dossier ne sont jamais touchés.
 
 ### Conflits entre mods
 
@@ -177,9 +195,9 @@ recherche comme TKMM : un `.tkcl` prioritaire, sinon les dossiers contenant `rom
 romfs nu). S'il y en a plusieurs (variantes), le manager demande lequel installer. Le mod arrive dans
 `sd:/totk/mods/<nom>/` avec un `mod.ini` (nom, version, auteur, description, lien) et sa vignette,
 et se place **en tête du profil actif**. Réinstaller le même mod le met à jour en gardant ses
-réglages. Les `plugin.nro` du mod sont installés avec lui. Un avertissement signale le code exefs
-(`subsdk`, `main.npdm`…), que le merger ignore : ce code doit être fourni en plugin pour être
-chargé. Il vaut aussi pour les paquets TKMM, dont les options embarquent parfois ce genre de code.
+réglages. Les `plugin.nro` du mod sont installés avec lui. Une note signale le code exefs (les
+modules `subsdk`), dans un dossier comme dans un paquet TKMM et ses options : il est installé quand
+les mods sont appliqués, et tourne à partir du prochain démarrage du jeu.
 
 Les archives rangées pour les patchs de code d'Atmosphère
 (`atmosphere/exefs_patches/<nom>/<build id>.ips`, comme Ultrahand42 est distribué) s'installent
@@ -192,7 +210,7 @@ L'onglet, dans l'ordre :
 
 | Groupe | Ce qu'on y trouve |
 |---|---|
-| **Fusion** | *Fusionneur activé* · *Fusionner au lancement du jeu si besoin* · *Appliquer les patchs de code des mods* (`.ips`/`.pchtxt`) · *Charger le code fourni par les mods* · *Avertir des conflits avant d'appliquer* · *Langues des textes* · *Fusions gardées en cache* (de 1 à 50) et la place que ce cache occupe sur la carte SD |
+| **Fusion** | *Fusionneur activé* · *Fusionner au lancement du jeu si besoin* · *Appliquer les patchs de code des mods* (`.ips`/`.pchtxt`) · *Charger les plugins fournis par les mods* · *Installer le code exefs fourni par les mods* · *Avertir des conflits avant d'appliquer* · *Langues des textes* · *Fusions gardées en cache* (de 1 à 50) et la place que ce cache occupe sur la carte SD |
 | **Interface** | *Langue / Language* : celle de la console, ou imposée. Elle prend effet au prochain lancement, que le manager propose de faire tout de suite |
 | **Installation** | ce qui est en place : le jeu et sa version, l'`exefs` de skyline-totk, le plugin fusionneur — chacun *Installé* ou *Absent*. Un avertissement apparaît si un dossier `atmosphere/contents/0100F2C0115B6000/romfs` existe, parce qu'il ralentit chaque démarrage. Puis *Lancé comme* : par le jeu (R), en application, ou en applet (album) |
 | **Maintenance** | *Vider le cache de fusion* : les fusions gardées (`sd:/totk/merged`), les changelogs (`cache`) et les téléchargements. Les mods et les profils restent |

@@ -159,6 +159,7 @@ State loadState()
     state.applyPatches  = flag(config, "apply_patches", true);
     state.mergeCacheSize = (int)number(config, "merge_cache_size");
     state.modPlugins     = flag(config, "mod_plugins", true);
+    state.modCode        = flag(config, "mod_code", true);
     state.locales       = str(config, "locales");
 
     for (auto& name : root.value("profiles", json::array()))
@@ -500,6 +501,8 @@ ApplyResult apply(const std::string& romPrefix, ProgressFn progress, ConflictsFn
     result.served   = (int)number(root, "served");
     result.warnings = (int)number(root, "warnings");
     result.patches  = (int)number(root, "patches");
+    result.code     = (int)number(root, "code");
+    result.codeChanged = flag(root, "code_changed");
     auto seconds    = root.find("seconds");
     result.seconds  = seconds != root.end() && seconds->is_number() ? seconds->get<double>() : 0;
     result.error    = str(root, "error");

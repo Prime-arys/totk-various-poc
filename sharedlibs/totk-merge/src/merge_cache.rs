@@ -9,6 +9,7 @@
 //! ├── <id>/                      one merge
 //! │   ├── index.tsv              romfs path → file served (store or mod folder)
 //! │   ├── patches.tsv            code patches
+//! │   ├── code.tsv               the modules (exefs/subsdk) the mods ship
 //! │   ├── plan.txt               mods and settings part of the stamp
 //! │   ├── locales.txt            message archives merged ("all" or "EUfr,USen")
 //! │   ├── profile.txt            the profile it was made for, for people
@@ -24,15 +25,22 @@ use alloc::collections::{BTreeMap, BTreeSet};
 
 use totk_formats::xxhash::xxh64;
 
+use crate::code::CodeFile;
 use crate::config::Locales;
 use crate::mods::Fingerprint;
 use crate::prelude::*;
 use crate::sys::{fs, path};
 use crate::{debug, info};
 
+/// Bumped whenever a merge records something it did not before, so that the
+/// merges made until then are made again instead of being served without it.
+/// 2: the modules of mods (`code.tsv`).
+pub const MERGE_VERSION: u32 = 2;
+
 pub const STORE_DIR: &str = "store";
 pub const INDEX_FILE: &str = "index.tsv";
 pub const PATCHES_FILE: &str = "patches.tsv";
+pub const CODE_FILE: &str = "code.tsv";
 pub const STAMP_FILE: &str = "stamp.txt";
 pub const PLAN_FILE: &str = "plan.txt";
 pub const LOCALES_FILE: &str = "locales.txt";
@@ -59,6 +67,14 @@ pub struct CachedMerge {
 pub struct Served {
     pub redirects: Redirects,
     pub patches: Vec<(u32, u32)>,
+    /// The modules the mods ship, kept in the store like merged files; the
+    /// mod that wins conflicts first (see [`crate::code`]).
+    pub code: Vec<CodeFile>,
+}
+
+/// The name a file gets in the store: its content's hash and its size.
+pub fn content_name(data: &[u8]) -> String {
+    format!("{:016x}-{:x}", xxh64(data, 0), data.len())
 }
 
 /// Whether merged message archives (`record`: "all" or "EUfr,USen") include
@@ -176,6 +192,16 @@ impl MergeCache {
                 served.patches.push((offset, value));
             }
         }
+        for line in self.read(id, CODE_FILE).unwrap_or_default().lines() {
+            let mut fields = line.split('\t');
+            if let (Some(file), Some(name)) = (fields.next(), fields.next()) {
+                served.code.push(CodeFile {
+                    file: file.to_string(),
+                    name: name.to_string(),
+                    source: fields.next().unwrap_or("").to_string(),
+                });
+            }
+        }
         Some(served)
     }
 
@@ -216,8 +242,15 @@ impl MergeCache {
         for (offset, value) in &served.patches {
             patches.push_str(&format!("{:08x}\t{:08x}\n", offset, value));
         }
+        let mut code = String::new();
+        for file in &served.code {
+            // A tab or a line break in a mod's name would break the line.
+            let source = file.source.replace(['\t', '\n', '\r'], " ");
+            code.push_str(&format!("{}\t{}\t{}\n", file.file, file.name, source));
+        }
         fs::write(&path::join(&dir, INDEX_FILE), index.as_bytes())?;
         fs::write(&path::join(&dir, PATCHES_FILE), patches.as_bytes())?;
+        fs::write(&path::join(&dir, CODE_FILE), code.as_bytes())?;
         fs::write(&path::join(&dir, PLAN_FILE), merge.plan.as_bytes())?;
         fs::write(&path::join(&dir, LOCALES_FILE), merge.locales.as_bytes())?;
         fs::write(&path::join(&dir, PROFILE_FILE), merge.profile.as_bytes())?;
@@ -263,6 +296,11 @@ impl MergeCache {
                     if let Some(name) = path::strip_root(sd, &store) {
                         used.insert(name.to_string());
                     }
+                }
+            }
+            for line in self.read(id, CODE_FILE).unwrap_or_default().lines() {
+                if let Some(name) = path::strip_root(line.split('\t').next().unwrap_or(""), &store) {
+                    used.insert(name.to_string());
                 }
             }
         }
@@ -343,7 +381,7 @@ impl StoreWriter {
 
     /// Stores `data`, returning the path to serve.
     pub fn put(&mut self, data: &[u8]) -> fs::Result<String> {
-        let name = format!("{:016x}-{:x}", xxh64(data, 0), data.len());
+        let name = content_name(data);
         let folder = name[..2].to_string();
         let dir = path::join(&self.store, &folder);
         let file = path::join(&dir, &name);

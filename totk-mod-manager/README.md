@@ -72,8 +72,8 @@ Each row says what the mod is, from what its folder holds:
 | romfs/exefs folder | game files in `romfs/`, maybe with code patches or a plugin |
 | Romfs | a romfs root: the game's folders (`Pack/`, `RSDB/`…) right in the mod folder |
 | Code patches (IPS) | code patches only: `exefs/*.ips`/`*.pchtxt`, or `atmosphere/exefs_patches/…` |
-| Code (plugin) | Skyline plugins only (`plugin.nro`) |
-| Exefs code (not loaded) | exefs executables only (`subsdk9`, `main.npdm`): they would replace skyline-totk, so nothing of this mod runs |
+| Code (plugin) | Skyline plugins (`plugin.nro`), and no game files |
+| Code (exefs module) | exefs modules only (`exefs/subsdk9`), the way TKMM packages code: installed next to Skyline when the mods are applied, loaded when the game starts |
 
 Changes (enabling, order, options, profile) are saved to the SD card immediately. Until they are
 applied, the Mods tab shows "Changes to apply"; if they never are, the plugin will merge when the
@@ -127,20 +127,36 @@ Mods tab says "Applied", boost is not started.
 
 ### Mods with code
 
-A mod can contain a `plugin.nro` (or several in a `plugins/` folder) next to its `romfs`, or even
-be nothing else. The game's plugin loads them once the merge is served, in mod order: that is what
-lets several code mods coexist, where a console has only one `exefs`, already taken by Skyline.
+A mod brings code in one of two ways.
+
+**As a Skyline plugin.** A mod can contain a `plugin.nro` (or several in a `plugins/` folder) next
+to its `romfs`, or even be nothing else. The game's plugin loads them once the merge is served, in
+mod order.
 
 - The Mods tab shows "plugin" on those mods, and "Code (plugin)" for the ones with no file to
   merge.
 - The mod's page (**Y**) lists the `.nro` it provides and lets you not load that code
   (`plugins = 0` in its `mod.ini`) while keeping its files.
-- Settings → *Load the code mods provide* turns loading off for every mod (`mod_plugins` in
+- Settings → *Load the plugins mods ship* turns loading off for every mod (`mod_plugins` in
   `config.ini`) — to be used when a mod crashes the game.
 
 These settings do not change the merge: they are read by the plugin when the game starts, so
 there is nothing to apply. Writing such a plugin: see the merger's README (section *Mods with
 code*) and its `plugins/enemy-hp` example.
+
+**As an exefs module.** That is what TKMM calls a mod's code: an `exefs/subsdk9` in the mod's
+folder or inside its `.tkcl`, usually built with exlaunch (*Dream Home Limit++*'s *Ultrahand
+Override* option, or this repository's `EnemyHpSe.tkcl`). A module is loaded by the console itself
+when the game starts, so the merge **installs** it: "Apply" leaves the modules of the enabled mods
+in `atmosphere/contents/0100F2C0115B6000/exefs/` as `subsdk1`, `subsdk2`…, next to Skyline's
+`subsdk9`, and takes away those of mods turned off. The result says how many are in place.
+
+- **Apply before launching the game.** A mod enabled without applying is still merged when the game
+  starts, but its module is only installed then, and runs from the following start.
+- The option chosen in a package decides which module is installed, like the rest of its files.
+- Settings → *Install the exefs code mods ship* turns it off for every mod (`mod_code` in
+  `config.ini`) and removes what was installed at the next "Apply" — to be used when a mod keeps
+  the game from starting. Files the manager did not put in that folder are never touched.
 
 ### Conflicts between mods
 
@@ -177,9 +193,9 @@ search like TKMM's: a `.tkcl` first, otherwise the folders containing `romfs/`/`
 romfs). When there are several (variants), the manager asks which one to install. The mod lands in
 `sd:/totk/mods/<name>/` with a `mod.ini` (name, version, author, description, link) and its
 thumbnail, and goes **to the top of the active profile**. Reinstalling the same mod updates it
-while keeping its settings. The mod's `plugin.nro` files are installed with it. A warning points
-out exefs code (`subsdk`, `main.npdm`…), which the merger ignores: such code has to be provided as
-a plugin to be loaded. It covers TKMM packages too, whose options sometimes ship such code.
+while keeping its settings. The mod's `plugin.nro` files are installed with it. A note points out
+exefs code (`subsdk` modules), in a folder or in a TKMM package and its options: it is installed
+when the mods are applied, and runs from the next start of the game.
 
 Archives laid out for Atmosphère's code patches (`atmosphere/exefs_patches/<name>/<build id>.ips`,
 as Ultrahand42 is distributed) install as well, listed as *Code patches (IPS)*: each named folder
@@ -191,7 +207,7 @@ The tab, in order:
 
 | Group | What is in it |
 |---|---|
-| **Merge** | *Merger enabled* · *Merge when the game starts if needed* · *Apply the mods' code patches* (`.ips`/`.pchtxt`) · *Load the code mods ship* · *Warn about conflicts before applying* · *Text languages* · *Merges kept in the cache* (1 to 50) and what that cache uses on the SD card |
+| **Merge** | *Merger enabled* · *Merge when the game starts if needed* · *Apply the mods' code patches* (`.ips`/`.pchtxt`) · *Load the plugins mods ship* · *Install the exefs code mods ship* · *Warn about conflicts before applying* · *Text languages* · *Merges kept in the cache* (1 to 50) and what that cache uses on the SD card |
 | **Interface** | *Language / Langue*: the console's, or forced. It takes effect at the next start, which the manager offers to do right away |
 | **Installation** | what is in place: the game and its version, skyline-totk's `exefs`, the merger plugin — each *Installed* or *Missing*. A warning appears when an `atmosphere/contents/0100F2C0115B6000/romfs` folder exists, because it slows every boot. Then *Started as*: the game (R), application, or applet (album) |
 | **Maintenance** | *Clear the merge cache*: the kept merges (`sd:/totk/merged`), the changelogs (`cache`) and the downloads. Mods and profiles are kept |

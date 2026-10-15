@@ -115,7 +115,7 @@ pub struct MergeReport {
     pub patches: Vec<(u32, u32)>,
     pub files: usize,
     pub warnings: usize,
-    pub ignored_code_files: usize,
+    pub ignored_cheat_files: usize,
     /// Time spent putting packs back together and writing them.
     pub pack_seconds: f32,
 }
@@ -184,27 +184,18 @@ impl<'a> Merger<'a> {
         self.load_size_overrides(changelogs);
         self.merge_patches(changelogs);
 
+        // The modules mods ship (`exefs/subsdk`) are not this merger's: the
+        // engine stores them next to the merged files (see `crate::code`).
+        // Cheats are what is left out, and a mod part that silently does
+        // nothing looks broken, so that is a warning rather than a note.
         for changelog in changelogs {
-            let code = changelog.subsdk_files.len() + changelog.exe_files.len() + changelog.cheats.len();
-            if code > 0 {
-                // A warning, not a note: a mod whose code part silently does
-                // nothing looks broken. `subsdk*`/`main.npdm` replace the
-                // game's exefs, which is Skyline's here, so they cannot run.
-                let mut files: Vec<&str> = changelog
-                    .subsdk_files
-                    .iter()
-                    .chain(changelog.exe_files.iter())
-                    .map(String::as_str)
-                    .collect();
-                if !changelog.cheats.is_empty() {
-                    files.push("cheats");
-                }
+            if !changelog.cheats.is_empty() {
                 self.warn(format!(
-                    "{}: its exefs code ({}) is ignored — it would replace skyline-totk; code mods have to be Skyline plugins (plugin.nro) or .ips/.pchtxt patches",
+                    "{}: its {} cheat file(s) are ignored — cheats belong in atmosphere/contents/<title>/cheats",
                     changelog.source.describe(),
-                    files.join(", ")
+                    changelog.cheats.len()
                 ));
-                self.report.ignored_code_files += code;
+                self.report.ignored_cheat_files += changelog.cheats.len();
             }
         }
 

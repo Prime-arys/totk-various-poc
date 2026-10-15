@@ -6,6 +6,8 @@
 //! Writes a TKMM project (`romfs/`, `options/`, `.tkproj`) that
 //! `tkmm-oracle package` turns into a `.tkcl`: the messages go in its base,
 //! the layout in an option group with one option per text size ([`SIZES`]).
+//! The group and its options are named in French, or in English with
+//! `ENEMY_HP_LABELS=en` in the environment.
 //!
 //! Tears of the Kingdom still *fills in* those numbers: the code reads the
 //! enemy's current and maximum life, formats each through the message
@@ -66,6 +68,22 @@ const SIZES: &[(&str, &str, &str, f32, f32, bool)] = &[
     ("2 Moyenne", "Moyenne", "Un tiers plus grand.", 16.0, 24.0, false),
     ("3 Grande", "Grande", "Lisible de loin.", 20.0, 28.0, true),
     ("4 Tres grande", "Très grande", "Pour jouer loin de l'écran.", 26.0, 34.0, false),
+];
+
+/// The same group and sizes named in English, for `ENEMY_HP_LABELS=en`: what
+/// TKMM and the mod manager show is a package's own text, in one language.
+/// The first edition of the mod shipped in French and keeps its names (a
+/// profile remembers the options chosen by them); the SE edition asks for
+/// these.
+const SIZE_GROUP_ENGLISH: (&str, &str) = (
+    "Number size",
+    "Size of the HP shown above the enemies' gauge and under the bosses'.",
+);
+const SIZES_ENGLISH: &[(&str, &str)] = &[
+    ("Small", "The size of the first attempt."),
+    ("Medium", "A third bigger."),
+    ("Large", "Readable from afar."),
+    ("Very large", "For playing far from the screen."),
 ];
 
 /// TKMM's option group types, as its project files number them.
@@ -496,16 +514,28 @@ fn main() {
     let layout = sarc.get(LAYOUT).expect("the enemy gauge layout").data;
     let boss_layout = sarc.get(BOSS_LAYOUT).expect("the boss gauge layout").data;
     let group = out.join("options").join(SIZE_GROUP);
+    let english = std::env::var("ENEMY_HP_LABELS").map_or(false, |labels| labels.eq_ignore_ascii_case("en"));
+    let (group_name, group_description) = match english {
+        true => SIZE_GROUP_ENGLISH,
+        false => (
+            "Taille des chiffres",
+            "Taille des PV affichés au-dessus de la jauge des ennemis et sous celle des boss.",
+        ),
+    };
     write_json(
         &group.join("info.json"),
         &[
-            ("Name", quoted("Taille des chiffres")),
-            ("Description", quoted("Taille des PV affichés au-dessus de la jauge des ennemis et sous celle des boss.")),
+            ("Name", quoted(group_name)),
+            ("Description", quoted(group_description)),
             ("Type", SINGLE_REQUIRED.to_string()),
             ("Priority", "0".to_string()),
         ],
     );
-    for (folder, name, description, size, boss_size, default) in SIZES {
+    for (index, (folder, name, description, size, boss_size, default)) in SIZES.iter().enumerate() {
+        let (name, description) = match english {
+            true => SIZES_ENGLISH[index],
+            false => (*name, *description),
+        };
         let option = group.join(folder);
         let mut builder = SarcBuilder::from_sarc(&sarc);
         builder.insert(LAYOUT, patch_layout(layout, *size));

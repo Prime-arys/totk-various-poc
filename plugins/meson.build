@@ -32,12 +32,15 @@ run_target(
 
 # The whole EnemyHp mod: its data read out of the game's own files, packaged
 # as a .tkcl, plus the plugin above. Needs an extracted romfs (--romfs); the
-# script says so when it is missing.
-run_target(
+# script says so when it is missing. (Its SE edition, whose code is in the
+# package instead of a plugin, is in mods/.)
+mod = run_target(
   'mod',
   command: [
     bash,
-    utils / 'build-enemy-hp-mod.sh',
+    utils / 'build-mod.sh',
+    'EnemyHp',
+    '--script', meson.current_source_dir() / 'enemy-hp' / 'build-mod.sh',
     '--romfs', get_option('totk_romfs'),
     '--out', release / 'mods' / 'EnemyHp',
   ],

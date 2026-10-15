@@ -132,6 +132,11 @@ SettingsTab::SettingsTab()
     list->addView(modPlugins);
     list->addView(ui::hint("app/settings/mod_plugins_hint"_i18n, 16, true));
 
+    auto* modCode = new brls::BooleanCell();
+    modCode->init("app/settings/mod_code"_i18n, state.modCode, [](bool on) { setFlag("mod_code", on); });
+    list->addView(modCode);
+    list->addView(ui::hint("app/settings/mod_code_hint"_i18n, 16, true));
+
     const app::Preferences& preferences = app::preferences();
     auto* warn = new brls::BooleanCell();
     warn->init("app/settings/warn_conflicts"_i18n, preferences.warnConflicts,

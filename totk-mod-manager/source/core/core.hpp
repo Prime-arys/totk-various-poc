@@ -20,7 +20,8 @@ struct Mod
     std::string name;
     std::string kind; // how it is merged: "folder", "package" or "romfs"
     /** What it is, to show: "package", "romfs", "folder", "patches", "code"
-     *  or "exefs" (see install::mod_type in the core). */
+     *  (plugins) or "exefs" (modules for the system loader); see
+     *  install::mod_type in the core. */
     std::string type;
     std::string path;
     std::string version;
@@ -70,6 +71,8 @@ struct State
     bool mergeAtBoot   = true;
     bool applyPatches  = true;
     bool modPlugins    = true;
+    /** Install the modules (exefs/subsdk) mods ship. */
+    bool modCode       = true;
     int mergeCacheSize = 10;
     std::string locales;
     std::vector<std::string> profiles;
@@ -155,6 +158,10 @@ struct ApplyResult
     int served    = 0;
     int warnings  = 0;
     int patches   = 0;
+    /** Modules of mods now in the title's exefs folder. */
+    int code      = 0;
+    /** That folder was changed by this merge. */
+    bool codeChanged = false;
     double seconds = 0;
     std::string error;
 };

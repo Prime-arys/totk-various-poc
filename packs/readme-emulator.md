@@ -35,3 +35,9 @@ JIT refuses taken out; the console build crashes at startup here.
 
 Then as on a console: enable the mods, **Apply**, then launch the game. The logs are in
 `sdcard/totk/merger.log` and `sdcard/skyline/totk/skyline.log`.
+
+A mod that brings exefs code (a `subsdk` module, in its folder or in its `.tkcl`) goes in
+`sdcard/totk/mods/` like the others: **Apply** installs its module in
+`sdcard/atmosphere/contents/0100F2C0115B6000/exefs/` (`subsdk1`…), which Ryujinx loads on top of
+the `skyline-totk` mod. That folder shows up as one more exefs mod in *Manage mods*: leave it
+enabled. The game loads modules when it starts, so apply before launching it.

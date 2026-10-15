@@ -6,10 +6,12 @@
 //! skyline-totk loads the plugins in its own folder: read, register through
 //! `nn::ro`, then run `main`.
 //!
-//! This is what lets code mods coexist. A console has room for one exefs
-//! (Atmosphère's `atmosphere/contents/<title>/exefs`), and Skyline already
-//! uses it, so two mods that each replace `subsdk9` cannot both be installed;
-//! as plugins they simply load one after the other.
+//! It is one of the two ways a mod brings code. The other is TKMM's: an
+//! `exefs/subsdk` module, which the system loader maps when the game starts
+//! (`totk_merge::code` keeps the title's exefs folder holding them, under
+//! names of their own next to Skyline's `subsdk9`). A plugin is loaded here
+//! and now instead, with no restart, and can use what Skyline and the merger
+//! export.
 //!
 //! Plugins are loaded after the merge, which means they cannot take part in it
 //! (a plugin that chooses which mods are merged through the `tkm_*` API still

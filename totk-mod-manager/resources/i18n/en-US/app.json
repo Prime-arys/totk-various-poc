@@ -40,7 +40,7 @@
         "kind_romfs": "Romfs",
         "kind_patches": "Code patches (IPS)",
         "kind_code": "Code (plugin)",
-        "kind_exefs": "Exefs code (not loaded)",
+        "kind_exefs": "Code (exefs module)",
         "move": "Move",
         "moving": "Moving",
         "moving_hint": "\uE0EB\uE0EC move the mod up / down   ·   \uE0E0 or \uE0E1 put it down   ·   higher = wins",
@@ -119,6 +119,8 @@
         "up_to_date": "Already up to date: {} mod(s), {} file(s) served.",
         "nothing": "No mod enabled: the game will start without mods.",
         "warnings": "{} warning(s), see sd:/totk/manager.log.",
+        "code": "{} code module(s) of mods installed next to Skyline: the game loads them when it starts.",
+        "code_removed": "The code modules of mods were removed from the game's exefs folder.",
         "failed": "The merge failed: {}",
         "launch": "Launch the game",
         "launch_failed": "The game could not be launched ({}). Start it from the HOME menu.",
@@ -179,7 +181,7 @@
         "choose": "This file holds several mods: which one?",
         "failed": "The install failed: {}",
         "done": "Mod installed in sd:/totk/mods/{}/ and enabled at the top of profile \"{}\".\n\nPress X to apply it.",
-        "has_code": "Note: this mod ships exefs code (subsdk, main.npdm…). The merger only uses romfs and .ips/.pchtxt patches: that code is ignored. A mod can ship a Skyline plugin (plugin.nro) instead, which is loaded."
+        "has_code": "Note: this mod ships exefs code (a subsdk module). Applying the mods installs it next to Skyline, and the game loads it when it starts: apply before launching the game, or its code only runs from the following start."
     },
     "settings": {
         "merge": "Merge",
@@ -237,8 +239,10 @@
         "sysclk_cpu": "CPU (sys-clk)",
         "sysclk_memory": "Memory (sys-clk)",
         "sysclk_hint": "Stock maximums: 1785 MHz for the CPU, 1600 MHz for the memory. Higher values only show with an overclocking sys-clk or Atmosphère, at your own risk.",
-        "mod_plugins": "Load the code mods ship",
-        "mod_plugins_hint": "A mod can hold a plugin.nro, loaded in the game once the merge is served: that is how several code mods coexist. Turn it off if a mod makes the game crash."
+        "mod_plugins": "Load the plugins mods ship",
+        "mod_plugins_hint": "A mod can hold a plugin.nro, loaded in the game once the merge is served. Turn it off if a mod makes the game crash.",
+        "mod_code": "Install the exefs code mods ship",
+        "mod_code_hint": "A mod can hold code the way TKMM packages it (exefs/subsdk, exlaunch mods). It is installed next to Skyline in the game's exefs folder and loaded when the game starts. Turning it off removes what was installed; turn it off if a mod keeps the game from starting."
     },
     "conflicts": {
         "title": "{} conflict(s) between mods",

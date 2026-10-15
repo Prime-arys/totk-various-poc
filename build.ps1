@@ -10,7 +10,8 @@
     .\build.ps1 pack-switch                 one of them (or pack-emulator)
     .\build.ps1 plugins                     the example plugins
     .\build.ps1 -Romfs D:\romfs mod         the EnemyHp mod, in release\mods\
-    .\build.ps1 test                        the tests of the crates
+    .\build.ps1 -Romfs D:\romfs mod-se      its SE edition (code in the .tkcl; mods: both)
+    .\build.ps1 test                       the tests of the crates
     .\build.ps1 doctor                      what the image has
     .\build.ps1 shell                       a shell inside the container
     .\build.ps1 clean                       empties output\ (-All: release\ too)
@@ -58,10 +59,16 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
 }
 
 # Forgetting `git submodule update --init` fails much further on, inside CMake,
-# with a message about borealis that says nothing about submodules.
-$borealis = Join-Path $root 'totk-mod-manager\library\borealis\library\CMakeLists.txt'
-if (-not (Test-Path $borealis) -and (Test-Path (Join-Path $root '.git'))) {
-    Write-Host "== the submodules are empty: git submodule update --init"
+# with a message about borealis that says nothing about submodules. One file
+# of each submodule is enough to tell.
+$submodules = @(
+    'totk-mod-manager\library\borealis\library\CMakeLists.txt',
+    'utils\TkSharp\TkSharp\TkSharp.csproj',
+    'utils\exlaunch\misc\mk\common.mk'
+)
+$missing = $submodules | Where-Object { -not (Test-Path (Join-Path $root $_)) }
+if ($missing -and (Test-Path (Join-Path $root '.git'))) {
+    Write-Host "== a submodule is empty: git submodule update --init"
     git -C $root submodule update --init
 }
 
@@ -90,11 +97,13 @@ if ($Zip) { $setupOptions += '-Dpack_zip=true' }
 if ($TitleId) { $setupOptions += "-Dtitle_id=$TitleId" }
 
 # `meson setup` on a directory that is already configured exits 0 and ignores
-# the options it was given, so past the first run the options go to
-# `meson configure` instead.
+# the options it was given, so past the first run it is told to configure
+# again. That also reads the meson.build files anew: `meson compile <target>`
+# checks the name against what the last configuration knew, and would refuse
+# a target added since ("target not found").
 $options = $setupOptions -join ' '
 $configure = "if [ -e $buildDir/meson-info/meson-info.json ]; " +
-             "then meson configure $options $buildDir >/dev/null; " +
+             "then meson setup --reconfigure $options $buildDir >/dev/null; " +
              "else meson setup $options $buildDir >/dev/null; fi"
 
 if ($Run) {

@@ -177,6 +177,8 @@ fn main() {
     config.locales = std::env::var("LOCALES").unwrap_or_else(|_| "USen".into());
     config.force_merge = true;
     config.use_romfslite = false;
+    // The modules of mods go where the console's exefs folder would be.
+    config.exefs_dir = work.join("exefs").to_string_lossy().to_string();
 
     let mods: Vec<ModSpec> = args[3..]
         .iter()
@@ -292,11 +294,34 @@ fn main() {
     }
 
     if let Ok(entries) = std::fs::read_dir(tkmm.join("exefs")) {
+        // TKMM numbers the modules of mods from subsdk1, the mod that wins
+        // conflicts first: the order `outcome.code` is in.
+        let mut their_modules: Vec<(String, Vec<u8>)> = Vec::new();
         for entry in entries.flatten() {
+            let name = entry.file_name().to_string_lossy().to_string();
             let data = std::fs::read(entry.path()).unwrap();
-            let theirs_patch = totk_merge::builder::parse_ips(&data, "").map(|p| p.entries).unwrap_or_default();
-            let same = theirs_patch == outcome.patches;
-            println!("{} exefs patches ({} ours, {} TKMM's)", if same { "SAME    " } else { "DIFFERS " }, outcome.patches.len(), theirs_patch.len());
+            if name.to_ascii_lowercase().ends_with(".ips") {
+                let theirs_patch = totk_merge::builder::parse_ips(&data, "").map(|p| p.entries).unwrap_or_default();
+                let same = theirs_patch == outcome.patches;
+                println!("{} exefs patches ({} ours, {} TKMM's)", if same { "SAME    " } else { "DIFFERS " }, outcome.patches.len(), theirs_patch.len());
+            } else if name.starts_with("subsdk") {
+                their_modules.push((name, data));
+            } else {
+                println!("NOT OURS exefs/{} (only modules and patches are installed)", name);
+            }
+        }
+        their_modules.sort();
+        let our_modules: Vec<Vec<u8>> = outcome.code.iter().map(|file| std::fs::read(&file.file).unwrap()).collect();
+        let same = their_modules.len() == our_modules.len()
+            && their_modules.iter().zip(&our_modules).all(|((_, theirs), ours)| theirs == ours);
+        if !their_modules.is_empty() || !our_modules.is_empty() {
+            println!(
+                "{} exefs modules ({} ours, {} TKMM's: {})",
+                if same { "SAME    " } else { "DIFFERS " },
+                our_modules.len(),
+                their_modules.len(),
+                their_modules.iter().map(|(name, _)| name.as_str()).collect::<Vec<_>>().join(", ")
+            );
         }
     }
 

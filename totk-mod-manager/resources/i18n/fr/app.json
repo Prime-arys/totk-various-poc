@@ -40,7 +40,7 @@
         "kind_romfs": "Romfs",
         "kind_patches": "Patchs de code (IPS)",
         "kind_code": "Code (plugin)",
-        "kind_exefs": "Code exefs (non chargé)",
+        "kind_exefs": "Code (module exefs)",
         "move": "Déplacer",
         "moving": "Déplacement",
         "moving_hint": "\uE0EB\uE0EC monter / descendre le mod   ·   \uE0E0 ou \uE0E1 le poser   ·   plus haut = prioritaire",
@@ -119,6 +119,8 @@
         "up_to_date": "Déjà à jour : {} mod(s), {} fichier(s) servis.",
         "nothing": "Aucun mod activé : le jeu démarrera sans mods.",
         "warnings": "{} avertissement(s), voir sd:/totk/manager.log.",
+        "code": "{} module(s) de code des mods installé(s) à côté de Skyline\u00A0: le jeu les charge à son démarrage.",
+        "code_removed": "Les modules de code des mods ont été retirés du dossier exefs du jeu.",
         "failed": "La fusion a échoué : {}",
         "launch": "Lancer le jeu",
         "launch_failed": "Le jeu n'a pas pu être lancé ({}). Lancez-le depuis le menu HOME.",
@@ -179,7 +181,7 @@
         "choose": "Plusieurs mods dans ce fichier : lequel installer ?",
         "failed": "L'installation a échoué : {}",
         "done": "Mod installé dans sd:/totk/mods/{}/ et activé en tête du profil «\u00A0{}\u00A0».\n\nAppuyez sur X pour l'appliquer.",
-        "has_code": "Attention : ce mod contient du code exefs (subsdk, main.npdm…). Le merger n'utilise que romfs et les patchs .ips/.pchtxt : ce code est ignoré. Un mod peut en revanche fournir un plugin Skyline (plugin.nro), qui lui est chargé."
+        "has_code": "À savoir\u00A0: ce mod contient du code exefs (un module subsdk). Appliquer les mods l'installe à côté de Skyline, et le jeu le charge à son démarrage\u00A0: appliquez avant de lancer le jeu, sinon son code ne tournera qu'au démarrage suivant."
     },
     "settings": {
         "merge": "Fusion",
@@ -237,8 +239,10 @@
         "sysclk_cpu": "Processeur (sys-clk)",
         "sysclk_memory": "Mémoire (sys-clk)",
         "sysclk_hint": "Maximums d'origine\u00A0: 1785 MHz pour le processeur, 1600 MHz pour la mémoire. Des valeurs plus hautes n'apparaissent qu'avec un sys-clk ou un Atmosphère d'overclock, à vos risques.",
-        "mod_plugins": "Charger le code fourni par les mods",
-        "mod_plugins_hint": "Un mod peut contenir un plugin.nro, chargé dans le jeu une fois la fusion servie\u00A0: c'est ainsi que plusieurs mods de code coexistent. À désactiver si un mod fait planter le jeu."
+        "mod_plugins": "Charger les plugins fournis par les mods",
+        "mod_plugins_hint": "Un mod peut contenir un plugin.nro, chargé dans le jeu une fois la fusion servie. À désactiver si un mod fait planter le jeu.",
+        "mod_code": "Installer le code exefs fourni par les mods",
+        "mod_code_hint": "Un mod peut contenir du code à la façon de TKMM (exefs/subsdk, les mods exlaunch). Il est installé à côté de Skyline dans le dossier exefs du jeu et chargé à son démarrage. Le désactiver retire ce qui a été installé\u00A0; à faire si un mod empêche le jeu de démarrer."
     },
     "conflicts": {
         "title": "{} conflit(s) entre les mods",

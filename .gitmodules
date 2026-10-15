@@ -4,3 +4,6 @@
 [submodule "utils/TkSharp"]
 	path = utils/TkSharp
 	url = https://github.com/TKMM-Team/TkSharp
+[submodule "utils/exlaunch"]
+	path = utils/exlaunch
+	url = https://github.com/shadowninja108/exlaunch

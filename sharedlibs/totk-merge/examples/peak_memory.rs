@@ -41,6 +41,8 @@ fn main() {
     config.cache_dir = work.join("cache").to_string_lossy().to_string();
     config.force_merge = true;
     config.use_romfslite = false;
+    // The modules of mods go where the console's exefs folder would be.
+    config.exefs_dir = work.join("exefs").to_string_lossy().to_string();
     // "auto" would look for sd:/totk/locale.txt, which a PC does not have.
     config.locales = std::env::var("LOCALES").unwrap_or_else(|_| "all".into());
     let mods = args[2..]

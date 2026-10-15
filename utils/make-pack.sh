@@ -88,7 +88,10 @@ One folder per mod, right here:
   totk/mods/My Mod/romfs/...         a mod as a folder
   totk/mods/My Mod/My Mod.tkcl       a TKMM package
   totk/mods/My Mod/mod.ini           optional: name, version, priority
-  totk/mods/My Mod/plugin.nro        optional: the code the mod brings
+  totk/mods/My Mod/plugin.nro        optional: code, as a Skyline plugin
+  totk/mods/My Mod/exefs/subsdk9     optional: code, as an exefs module (it can
+                                     be inside the .tkcl as well); installed
+                                     next to Skyline when the mods are applied
 
 Mods are not part of the pack: see docs/mods.md in the repository to build one
 (the EnemyHp mod, for instance).
@@ -99,7 +102,10 @@ Un dossier par mod, ici meme :
   totk/mods/Mon Mod/romfs/...        un mod en dossier
   totk/mods/Mon Mod/Mon Mod.tkcl     un paquet TKMM
   totk/mods/Mon Mod/mod.ini          facultatif : nom, version, priorite
-  totk/mods/Mon Mod/plugin.nro       facultatif : le code que le mod fournit
+  totk/mods/Mon Mod/plugin.nro       facultatif : du code, en plugin Skyline
+  totk/mods/Mon Mod/exefs/subsdk9    facultatif : du code, en module exefs (il
+                                     peut aussi etre dans le .tkcl) ; installe
+                                     a cote de Skyline quand on applique les mods
 
 Les mods ne font pas partie du pack : voir docs/mods.fr.md du depot pour en
 construire (par exemple le mod EnemyHp).

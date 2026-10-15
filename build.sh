@@ -7,7 +7,8 @@
 #   ./build.sh pack-switch              one of them (or pack-emulator)
 #   ./build.sh plugins                  the example plugins, in release/plugins/
 #   ./build.sh --romfs <dossier> mod    the EnemyHp mod, in release/mods/
-#   ./build.sh test                     the tests of the crates that run on a PC
+#   ./build.sh --romfs <dossier> mod-se its SE edition (code in the .tkcl; mods: both)
+#   ./build.sh test                    the tests of the crates that run on a PC
 #   ./build.sh doctor                   what the image has
 #   ./build.sh shell                    a shell inside the container
 #   ./build.sh clean [--all]            empties output/ (--all: release/ too)
@@ -46,7 +47,7 @@ while [ $# -gt 0 ]; do
         --no-dotnet) DOTNET=0 ;;
         --all) CLEAN_ALL=1 ;;
         --) shift; VERBATIM=1; break ;;
-        -h | --help) sed -n '2,23p' "${BASH_SOURCE[0]}" | cut -c2-; exit 0 ;;
+        -h | --help) sed -n '2,24p' "${BASH_SOURCE[0]}" | cut -c2-; exit 0 ;;
         -*) echo "unknown option: $1 (--help)" >&2; exit 2 ;;
         *) TARGETS+=("$1") ;;
     esac
@@ -79,10 +80,16 @@ if ! command -v docker >/dev/null 2>&1; then
 fi
 
 # Forgetting `git submodule update --init` fails much further on, inside CMake,
-# with a message about borealis that says nothing about submodules.
-if [ ! -f "$ROOT/totk-mod-manager/library/borealis/library/CMakeLists.txt" ] \
-   && [ -d "$ROOT/.git" ]; then
-    echo "== the submodules are empty: git submodule update --init"
+# with a message about borealis that says nothing about submodules. One file
+# of each submodule is enough to tell.
+submodules_present=1
+for file in totk-mod-manager/library/borealis/library/CMakeLists.txt \
+            utils/TkSharp/TkSharp/TkSharp.csproj \
+            utils/exlaunch/misc/mk/common.mk; do
+    [ -f "$ROOT/$file" ] || submodules_present=0
+done
+if [ "$submodules_present" = 0 ] && [ -d "$ROOT/.git" ]; then
+    echo "== a submodule is empty: git submodule update --init"
     git -C "$ROOT" submodule update --init
 fi
 
@@ -115,10 +122,13 @@ fi
 [ -n "$TITLE_ID" ] && setup_options+=("-Dtitle_id=$TITLE_ID")
 
 # `meson setup` on a directory that is already configured exits 0 and ignores
-# the options it was given, so past the first run the options go to
-# `meson configure` instead.
+# the options it was given, so past the first run it is told to configure
+# again. That also reads the meson.build files anew: `meson compile <target>`
+# checks the name against what the last configuration knew, and would refuse
+# a target added since ("target not found") without ever getting to ninja,
+# which is what would have noticed the change.
 configure="if [ -e $BUILD_DIR/meson-info/meson-info.json ]; \
-    then meson configure ${setup_options[*]} $BUILD_DIR >/dev/null; \
+    then meson setup --reconfigure ${setup_options[*]} $BUILD_DIR >/dev/null; \
     else meson setup ${setup_options[*]} $BUILD_DIR >/dev/null; fi"
 
 if [ "$VERBATIM" = 1 ]; then

@@ -11,6 +11,9 @@ serves the result to the game through `nn::fs`. In the spirit of
 [ARCropolis](https://github.com/Raytwo/arcropolis) for Smash.
 
 - "folder" mods (`romfs/`, `exefs/`) **and TKMM `.tkcl` packages**, options included;
+- the **code** mods bring, both ways: Skyline plugins, loaded at once, and the exefs modules
+  (`subsdk`) TKMM packages, installed next to Skyline for the console to load (see
+  [Mods with code](#mods-with-code));
 - **profiles** (named mod lists, order and options per profile);
 - a **C API** (`tkm_*`) so another plugin (an online mode…) can impose its own mod list;
 - reuses a **RomFSlite** export from TKMM as a base mod;
@@ -41,7 +44,8 @@ sd:/totk/
 │   │   ├── mod.ini               (optional: name, version, author, description…)
 │   │   ├── romfs/...
 │   │   ├── exefs/*.pchtxt|*.ips  (optional: code patches)
-│   │   └── plugin.nro            (optional: the mod's code, see Mods with code)
+│   │   ├── exefs/subsdk9         (optional: code as an exefs module, see Mods with code)
+│   │   └── plugin.nro            (optional: code as a Skyline plugin, same section)
 │   └── Other Mod/                a TKMM package
 │       ├── mod.ini               (optional)
 │       └── Other Mod.tkcl
@@ -81,7 +85,8 @@ merge.
 sd:/totk/merged/
 ├── store/<xx>/<fingerprint>-<size>   merged files, named after their contents (xxHash64)
 ├── <id>/                             one merge: index.tsv (game path → served file),
-│                                     patches.tsv, plan.txt, locales.txt, profile.txt,
+│                                     patches.tsv, code.tsv (the mods' modules, kept in the
+│                                     store too), plan.txt, locales.txt, profile.txt,
 │                                     conflicts.tsv, then stamp.txt last (a complete merge)
 └── recent.txt                        the merges, most recent first
 ```
@@ -109,6 +114,8 @@ The end of every merge is detailed in the log:
 | `use_romfslite` | `1` | use a TKMM RomFSlite export as a base mod |
 | `apply_patches` | `1` | apply the mods' `.ips`/`.pchtxt` patches in memory |
 | `mod_plugins` | `1` | load the plugins mods provide (see Mods with code) |
+| `mod_code` | `1` | install the exefs modules mods provide (same section); `0` removes the ones installed |
+| `exefs_dir` | `sd:/atmosphere/contents/0100F2C0115B6000/exefs` | where they are installed: the title's exefs folder |
 | `shop_param_limit` | `512` | the shop limit TKMM raises at every merge (`0`: off) |
 | `control_timeout_ms` | `60000` | the longest wait for a plugin that took control (API) |
 | `log_redirects` / `verbose` | `0` | diagnostic logs |
@@ -159,6 +166,62 @@ enabled = 0
 
 ### Mods with code
 
+A mod brings code in one of two ways, and both are taken:
+
+| | Skyline plugin | Exefs module |
+|---|---|---|
+| The file | `plugin.nro` (or `plugins/*.nro`) in the mod's folder | `exefs/subsdkN`, in the mod's folder or inside its `.tkcl` |
+| What it is | a plugin written for Skyline | what TKMM calls a mod's code: usually an [exlaunch](https://github.com/shadowninja108/exlaunch) module, named `subsdk9` |
+| Loaded by | the merger, in the running game, once the merge is served | the console (or Ryujinx) itself, when the game **starts** |
+| Takes effect | at once | at the next start of the game after the merge that installed it |
+| Works in TKMM | no | yes |
+
+#### Exefs modules
+
+A console has one exefs folder per title (`atmosphere/contents/<title>/exefs`), and Skyline's
+`subsdk9` is in it. TKMM solves the same problem for its own merged output by renaming the modules
+of mods `subsdk1`, `subsdk2`…; the merger does the same, in that folder:
+
+```
+sd:/atmosphere/contents/0100F2C0115B6000/exefs/
+├── subsdk9               skyline-totk — never touched
+├── main.npdm             its permissions, which cover what the modules need
+├── subsdk1 … subsdk8     the modules of the merged mods, the mod that wins conflicts first
+└── totk-mod-merger.txt   which of those files the merger put there
+```
+
+- The modules follow the mods: every merge (at boot, or "Apply" in totk-mod-manager) leaves the
+  folder holding exactly the modules of the mods merged, the options chosen in a package included.
+  Turning a mod off removes its module.
+- **They only run from the next start.** The loader reads that folder before any of this runs, so a
+  change made while the game boots shows the next time; the log says so (`the modules of mods
+  changed…`). Applying the mods from totk-mod-manager before launching the game avoids the wait.
+- Only the files listed in `totk-mod-merger.txt` are ever replaced or removed. A `subsdk` that was
+  there before, or one put there by hand, is left alone and its name is not used. (A file that
+  holds, byte for byte, the module of a merged mod counts as that mod's: it is listed rather than
+  installed twice.)
+- Eight names at most; beyond that, the mods that lose conflicts are left out, with a warning. The
+  same module shipped by two mods is installed once.
+- A mod's `main.npdm` is not installed: Skyline's already grants every permission. Its other
+  executables (`main`, `rtld`, `sdk`) are not either, with a warning: replacing the game's own code
+  is not something the merger does.
+- `mod_code = 0` in `config.ini` turns it off and removes what was installed (totk-mod-manager
+  exposes it).
+
+Under Ryujinx the folder is the emulated SD card's
+(`sdcard/atmosphere/contents/<title>/exefs`), which Ryujinx loads alongside the `skyline-totk`
+mod of the emulator pack.
+
+Whether a module then works is its own business: it is loaded exactly as TKMM would have it
+loaded, next to one more module (Skyline). Two modules that hook the same function of the game
+conflict here as they do with TKMM.
+
+A complete example: [`mods/enemy-hp-se`](../mods/enemy-hp-se), the SE edition of the mod below —
+the same data, its code as a module built with exlaunch, its settings as options of the package
+(see [docs/mods.md](../docs/mods.md)).
+
+#### Skyline plugins
+
 A mod can provide its own **Skyline plugin**, which the merger loads into the game once the merge
 is served:
 
@@ -169,10 +232,6 @@ sd:/totk/mods/My Mod/
 ├── plugin.nro                 loaded after the merge
 └── plugins/*.nro              (or several, loaded in alphabetical order)
 ```
-
-This is what lets **several code mods coexist**: a console has only one exefs
-(`atmosphere/contents/<title>/exefs`), already taken by Skyline, so two mods each replacing
-`subsdk9` cannot be installed together; as plugins, they load one after the other.
 
 - Only the plugins of mods **enabled in the profile** are loaded, in merge order.
 - The same `.nro` provided by two mods is only loaded once.
@@ -292,6 +351,7 @@ It is a port of `TkSharp.Merging` (TKMM 2.x), merger by merger:
 | `.sarc`, `.blarc`, `.bfarc`, `.bkres`, `.genvb`, `.ta` | inner files merged recursively |
 | `*.rsizetable` | rebuilt (TKMM's formulas, including `.ainb`/`.asb`/`.bstar`/`.mc`) |
 | `exefs/*.ips`, `*.pchtxt` | patches for the game's version merged and applied in memory at startup |
+| `exefs/subsdkN` | not merged: installed in the title's exefs folder as `subsdk1`…`subsdk8`, like TKMM's `MergeSubSdk` (see Mods with code) |
 | others (models, textures, sounds…) | the highest priority mod wins |
 
 ### Conflicts
@@ -320,11 +380,11 @@ larger on the SD card.
 - **Texture changelogs `__Combined.bntx`** in a `.tkcl`: ignored with a warning (complete BNTX
   files work, the highest priority one wins).
 - **The `.bfres.mc` material fix** TKMM applies for the 1.4 shaders: useless in 1.2.1, not ported.
-- **Code** (`subsdk*`, the `main` of an `exefs`) and **cheats**: ignored, with a warning that
-  counts in the merge's report. A `subsdk9` would take skyline-totk's place: code mods have to be
-  Skyline plugins or `.ips`/`.pchtxt` patches — which is exactly what lets them coexist. Some
-  packages ship such code as an option (Dream Home Limit++'s *Ultrahand Override*, for instance):
-  that option does nothing here, and totk-mod-manager says so when installing the mod.
+- **Cheats**, and the executables of an `exefs` other than modules (`main`, `rtld`, `sdk`; a
+  mod's `main.npdm`): not installed, with a warning that counts in the merge's report (none for
+  `main.npdm`, which Skyline's replaces). The modules themselves (`subsdk*`) are installed, see
+  [Mods with code](#mods-with-code) — which is what an option such as Dream Home Limit++'s
+  *Ultrahand Override* is made of.
 - TKMM's "file identical to an older version" check (a 13 MB list of checksums) is not carried: a
   folder mod built for an earlier version of the game is compared against the installed version.
 
@@ -336,8 +396,8 @@ contents of `atmosphere/contents/0100F2C0115B6000/romfslite/` to the game direct
 going through Atmosphère's LayeredFS** (which runs out of memory on recent firmwares with TotK's
 300,000 files). TKMM can export its merge into that folder.
 
-Reusing *its code* is not possible: it is closed and lives in UltraCam's exefs, which conflicts
-with skyline-totk's. But **this plugin applies the same technique** (`nn::fs` redirection from the
+Reusing *its code* is not possible: it is closed, and part of UltraCam's own exefs module. But
+**this plugin applies the same technique** (`nn::fs` redirection from the
 SD card, never a `romfs` folder for the title), so it gets the same performance: no LayeredFS
 rebuild at boot, and a merge done once then cached.
 
@@ -432,10 +492,11 @@ TOTK_VANILLA_DIR=/path/romfs cargo test -p totk-formats -p totk-merge -- --nocap
 
 [`utils/tkmm-oracle`](../utils/tkmm-oracle) runs TKMM's own code (TkSharp) to package a `.tkcl` or
 to merge mods; `compare_merge` merges the same mods with this plugin and compares the results
-content by content (BYML trees, archive entries, MSBT labels, RSTB entries, patches).
+content by content (BYML trees, archive entries, MSBT labels, RSTB entries, patches, and the
+modules of mods: TKMM's `exefs/subsdk1`… against the ones installed).
 
 ```bash
-dotnet output/dotnet/bin/TkmmOracle/release/tkmm-oracle.dll merge <romfs> out-tkmm modA modB package.tkcl
+dotnet "$(find output/dotnet -name tkmm-oracle.dll)" merge <romfs> out-tkmm modA modB package.tkcl
 cargo run --release -p totk-merge --example compare_merge -- <romfs> out-tkmm work modA modB package.tkcl
 cargo run --release -p totk-merge --example make_fixtures -- <romfs> fixtures   # realistic test mods
 cargo run --release -p totk-merge --example peak_memory -- <romfs> work mods...
@@ -448,6 +509,7 @@ Results (TotK 1.2.1):
 | 2 generated mods that overlap (the same document in a pack, ActorInfo, GameDataList, texts, tags) | 7 | equivalent |
 | 1 folder mod + 1 `.tkcl` packaged by TKMM | 7 | equivalent |
 | 5 real mods (including 2 on the same pack, a `.bcett` with keyed arrays, `.pchtxt` patches) | 42 | equivalent, RSTB included |
+| `EnemyHpSe.tkcl` (5 option groups, an exefs module, 3 files of its own in romfs) | 11 | equivalent; `subsdk1` identical to TKMM's |
 
 Under Ryujinx: 4 mods merged at boot (including a `.tkcl` with an option), patches applied, the
 game up to the title screen with the merged files; the online example plugin: taking control,
@@ -460,6 +522,12 @@ mod setting the blue Bokoblin to 1 HP on top (`make_enemy_hp_mod`), the report s
 72: the plugin really does read the merged files. Worth noting: the game's heap refused the first
 megabyte the plugin asked for, hence `scratch.rs`.
 
+Exefs modules are checked on a PC, where the exefs folder is an ordinary one: the unit tests of
+`code.rs` (names taken by someone else, a lost list, more modules than names), the engine test
+`modules_follow_the_mods` against the real romfs, and the real *Dream Home Limit++* package, whose
+selected option's `subsdk9` comes out as `subsdk1`, byte for byte. What happens once the console
+loads them is **not** tested from here: that takes a start of the game.
+
 ## Architecture
 
 ```
@@ -467,6 +535,7 @@ src/                          the Skyline plugin: entry, tkm_* API, nn::fs hooks
 ../sharedlibs/totk-merge/     orchestration and merging, no_std + alloc (std feature by default)
   engine.rs control.rs mods.rs profile.rs cache.rs   merging, taking control, mods, profiles, cache
   conflicts.rs merge_cache.rs                        conflicts between mods, the merges kept
+  code.rs                                            the exefs modules of mods, and the title's exefs folder
   tkcl.rs rom.rs canonical.rs config.rs ini.rs       TKMM packages, the game's files, settings
   builder.rs merger.rs                               TkChangelogBuilder / TkMerger
   byml_*.rs rsdb.rs gamedata.rs                      the mergers
@@ -474,7 +543,8 @@ src/                          the Skyline plugin: entry, tkm_* API, nn::fs hooks
 ../sharedlibs/totk-mod-merger-api/  Rust bindings of the API
 src/plugins.rs                loading the plugins mods provide
 ../plugins/online-example/    the example plugin (takes over the mod list)
-../plugins/enemy-hp/          the example mod that is nothing but code
+../plugins/enemy-hp/          the example mod whose code is a plugin
+../mods/enemy-hp-se/          the same mod with its code as an exefs module (exlaunch)
 include/totk_mod_merger.h     the C contract of the API
 ../utils/tkmm-oracle/         TKMM as a reference for comparisons
 ```

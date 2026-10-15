@@ -45,6 +45,11 @@ pub struct Config {
     pub apply_patches: bool,
     /// Load the Skyline plugins mods ship (see `mods::plugin_files`).
     pub mod_plugins: bool,
+    /// Install the modules (`exefs/subsdk`) mods ship, which the game loads
+    /// when it starts (see [`crate::code`]).
+    pub mod_code: bool,
+    /// The title's exefs folder, where those modules go.
+    pub exefs_dir: String,
     /// TKMM raises the shop parameter limit to this on every merge (0: off).
     pub shop_param_limit: u32,
     /// How long to wait for a plugin that took control of the mod list.
@@ -71,6 +76,8 @@ impl Default for Config {
             locales: "auto".to_string(),
             apply_patches: true,
             mod_plugins: true,
+            mod_code: true,
+            exefs_dir: format!("sd:/atmosphere/contents/{}/exefs", TITLE_ID),
             shop_param_limit: 512,
             control_timeout_ms: 60_000,
         }
@@ -128,6 +135,8 @@ impl Config {
                 "locales" => config.locales = value,
                 "apply_patches" => config.apply_patches = flag(config.apply_patches),
                 "mod_plugins" => config.mod_plugins = flag(config.mod_plugins),
+                "mod_code" => config.mod_code = flag(config.mod_code),
+                "exefs_dir" => config.exefs_dir = value,
                 "shop_param_limit" => config.shop_param_limit = value.parse().unwrap_or(config.shop_param_limit),
                 "control_timeout_ms" => {
                     config.control_timeout_ms = value.parse().unwrap_or(config.control_timeout_ms)

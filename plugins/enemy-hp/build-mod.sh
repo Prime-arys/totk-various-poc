@@ -26,11 +26,11 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$DIR/../.." && pwd)"
 ROMFS="${1:?usage: build-mod.sh <romfs> <out folder>}"
 OUT="${2:?usage: build-mod.sh <romfs> <out folder>}"
-# Where the packager is: utils/build-enemy-hp-mod.sh builds it and says so
+# Where the packager is: utils/build-mod.sh builds it and says so
 # through TKMM_ORACLE. Alone, look for it under output/dotnet.
 ORACLE="${TKMM_ORACLE:-$(find "$ROOT/output/dotnet" -name tkmm-oracle.dll 2>/dev/null | head -1 || true)}"
 if [ -z "$ORACLE" ]; then
-    echo "error: tkmm-oracle.dll not found; build it with utils/build-enemy-hp-mod.sh" >&2
+    echo "error: tkmm-oracle.dll not found; build it with utils/build-mod.sh" >&2
     exit 1
 fi
 

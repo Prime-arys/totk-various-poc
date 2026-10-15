@@ -17,14 +17,14 @@ written here.
 | [libeiffel](https://github.com/skyline-dev/libeiffel) (skyline-dev) | MIT | nnSdk utilities, in [`skyline-totk/libs/libeiffel`](skyline-totk/libs/libeiffel). |
 | [And64InlineHook](https://github.com/Rprop/And64InlineHook) (Rprop) | MIT | The AArch64 inline hooks every plugin depends on, in `skyline-totk/source/skyline/inlinehook/`. |
 | [borealis](https://github.com/xfangfang/borealis) (xfangfang, after natinusala) | Apache-2.0 | The homebrew's interface, as a submodule in `totk-mod-manager/library/borealis` (pinned at `5f08b286`). It carries fmt (MIT), tinyxml2 (zlib), tweeny (MIT), nanovg (zlib), yoga (MIT), libromfs, glad/glfw and SDL for the PC builds, as well as the *Material Icons* fonts (Apache-2.0, Google) and the system's own. |
+| [exlaunch](https://github.com/shadowninja108/exlaunch) (shadowninja108, after Atmosphère and oss-rtld) | GPL-2.0 | The framework for code injected as an exefs module, as a submodule in `utils/exlaunch` (pinned at `f9f4b0dd`), unmodified: the module of the EnemyHp SE mod ([`mods/enemy-hp-se`](mods/enemy-hp-se)) is built with it, hooks and all. It is also what the modules found in TKMM packages are made of, which the merger installs. |
 
 ## Ports and ideas
 
 | Project | Licence | What it is owed |
 |---|---|---|
-| [TKMM / TkSharp](https://github.com/TKMM-Team/Tkmm) (TKMM-Team) | MIT | The heart of the matter: [`sharedlibs/totk-merge`](sharedlibs/totk-merge) is a Rust port of `TkSharp.Merging` (merging BYML, SARC, RSTB, MSBT, GameDataList, code patches), and the `.tkcl` package format is theirs. [`utils/tkmm-oracle`](utils/tkmm-oracle) runs the real TkSharp — as a submodule in `utils/TkSharp`, pinned at `be46b9ad` — to check that both give the same result, file by file. [TKMM's documentation](https://tkmm.org/docs/settings) served as the reference for the settings and the mod options. |
+| [TKMM / TkSharp](https://github.com/TKMM-Team/Tkmm) (TKMM-Team) | MIT | The heart of the matter: [`sharedlibs/totk-merge`](sharedlibs/totk-merge) is a Rust port of `TkSharp.Merging` (merging BYML, SARC, RSTB, MSBT, GameDataList, code patches), and the `.tkcl` package format is theirs. [`utils/tkmm-oracle`](utils/tkmm-oracle) runs the real TkSharp — as a submodule in `utils/TkSharp`, pinned at `2e0e9b51` — to check that both give the same result, file by file. The way the modules of mods are laid out next to one another (`subsdk1`, `subsdk2`…) is its `MergeSubSdk`. [TKMM's documentation](https://tkmm.org/docs/settings) served as the reference for the settings and the mod options. |
 | [ArcRopolis](https://github.com/Raytwo/arcropolis) (Raytwo) | — | The idea that a mod can bring its own plugin, which the manager loads after the merge. |
-| [exlaunch](https://github.com/shadowninja108/exlaunch) (shadowninja108) | — | A reference on code injection and on the NPDM format on the Switch. |
 | [TotK-graphic-plugin](https://github.com/cucholix/TotK-graphic-plugin) (cucholix) | — | An example of a Skyline plugin for TotK, useful to check ABI compatibility. |
 | [nx-optimizer](https://github.com/MaxLastBreath/nx-optimizer) (MaxLastBreath) | — | A reference on the code patches (`.pchtxt`) applied to the game. |
 | [SimpleModDownloader](https://github.com/PoloNX/SimpleModDownloader) (PoloNX) | GPL-3.0 | The homebrew that browses and installs GameBanana mods from the console, on borealis as well: the reference behind this manager's GameBanana tab (searching, sorting, pages, a mod's files, the MD5 check, extracting the archive). |
@@ -68,7 +68,8 @@ for what is not in it, on reading the game's code, done here:
 The addresses hooked in the game's code (life gauges, the "life" component, interface text
 functions) were found here, in the `main` of **TotK 1.2.1**; they are documented next to the code
 that uses them ([`plugins/enemy-hp/src/game.rs`](plugins/enemy-hp/src/game.rs),
-[`boss.rs`](plugins/enemy-hp/src/boss.rs), [`regen.rs`](plugins/enemy-hp/src/regen.rs)) and
+[`boss.rs`](plugins/enemy-hp/src/boss.rs), [`regen.rs`](plugins/enemy-hp/src/regen.rs), and
+[`mods/enemy-hp-se/source/game.hpp`](mods/enemy-hp-se/source/game.hpp) for the SE edition) and
 checked at startup before anything is patched.
 
 ## The game
@@ -84,5 +85,12 @@ The code written here follows the MIT licence of Skyline, which it derives from
 ([`skyline-totk/LICENSE`](skyline-totk/LICENSE)). What was taken keeps its own: MIT for Skyline,
 libeiffel, And64InlineHook and TkSharp, Apache-2.0 for borealis, and their respective licences for
 what borealis carries (fmt, tinyxml2, tweeny, nanovg, yoga, Material Icons…).
+
+One built file is a case of its own: the module of EnemyHp SE (`subsdk9`, inside
+`EnemyHpSe.tkcl`) is the sources of [`mods/enemy-hp-se`](mods/enemy-hp-se) linked with exlaunch,
+which is under the **GPL, version 2**. Those sources are MIT like the rest, which the GPL allows
+to combine; the module that comes out, and the package that carries it, are distributed under the
+terms of the GPL-2.0 ([`utils/exlaunch/LICENSE`](utils/exlaunch/LICENSE)), with their source being
+this repository and that submodule. Nothing else here links against exlaunch.
 
 If a credit is missing or misattributed, it is a mistake: pointing it out is enough to fix it.

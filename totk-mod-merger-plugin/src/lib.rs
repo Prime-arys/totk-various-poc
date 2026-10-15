@@ -9,8 +9,11 @@
 //! game has read a single resource. Other plugins can take control of which
 //! mods are merged through the `tkm_*` API (see `api.rs`), and mods can ship
 //! plugins of their own, which are loaded once the merge is served (see
-//! `plugins.rs`). The merging itself lives in the `totk-merge` crate so it can
-//! be tested on a PC.
+//! `plugins.rs`). The modules mods ship the way TKMM packages them
+//! (`exefs/subsdk`) are for the system loader: the merge leaves them in the
+//! title's exefs folder, where they are picked up the next time the game
+//! starts (`totk_merge::code`). The merging itself lives in the `totk-merge`
+//! crate so it can be tested on a PC.
 
 mod alloc;
 mod api;
@@ -108,6 +111,15 @@ fn merge_and_serve() {
 
     if config.apply_patches {
         patches::apply(&outcome.patches);
+    }
+    if outcome.code_changed {
+        // The loader read the exefs folder before any of this ran: the
+        // modules in this process are the ones of the previous mods.
+        log::write(&format!(
+            "the modules of mods changed in {} ({} now): they take effect the next time the game starts. \
+             Applying the mods from totk-mod-manager puts them in place beforehand.",
+            config.exefs_dir, outcome.code_installed
+        ));
     }
 
     let (released, mapped) = alloc::trim();

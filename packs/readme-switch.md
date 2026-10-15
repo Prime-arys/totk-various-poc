@@ -37,3 +37,8 @@ To update a pack that is already installed, replacing `switch/totk-mod-manager.n
 
 Mods go one per folder in `totk/mods/` (see `totk/mods/README.txt`). When something goes wrong,
 `sd:/totk/merger.log` and `sd:/skyline/totk/skyline.log` tell what happened.
+
+A mod that brings exefs code (a `subsdk` module, in its folder or in its `.tkcl`) goes in
+`totk/mods/` like the others, never in `atmosphere/` by hand: **Apply** installs its module next to
+Skyline's, as `atmosphere/contents/0100F2C0115B6000/exefs/subsdk1`…, and removes it when the mod is
+turned off. The game loads modules when it starts, so apply before launching it.

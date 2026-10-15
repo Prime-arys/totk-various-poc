@@ -40,3 +40,9 @@ Pour mettre à jour un pack déjà installé, il suffit de remplacer
 Les mods se rangent un par dossier dans `totk/mods/` (voir `totk/mods/LISEZMOI.txt`).
 En cas de problème, `sd:/totk/merger.log` et `sd:/skyline/totk/skyline.log` racontent ce qui
 s'est passé.
+
+Un mod qui apporte du code exefs (un module `subsdk`, dans son dossier ou dans son `.tkcl`) se
+range dans `totk/mods/` comme les autres, jamais à la main dans `atmosphere/` : **Appliquer**
+installe son module à côté de celui de Skyline, en
+`atmosphere/contents/0100F2C0115B6000/exefs/subsdk1`…, et le retire quand le mod est désactivé. Le
+jeu charge les modules à son démarrage : il faut donc appliquer avant de le lancer.

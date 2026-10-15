@@ -204,6 +204,8 @@ pub extern "C" fn tkmc_state() -> *mut c_char {
         .field_num("merge_cache_size", config.merge_cache_size as i64)
         .field_bool("apply_patches", config.apply_patches)
         .field_bool("mod_plugins", config.mod_plugins)
+        .field_bool("mod_code", config.mod_code)
+        .field_str("exefs_dir", &config.exefs_dir)
         .end_object();
 
     json.array_field("profiles");
@@ -674,7 +676,8 @@ pub unsafe extern "C" fn tkmc_rom_info(rom_prefix: *const c_char) -> *mut c_char
 /// merge that is still current). Blocks; `progress` is called along the way,
 /// and `conflicts` (when not NULL) before merging mods that conflict.
 /// Returns `{"ok", "reused", "cancelled", "conflicts", "files", "served",
-/// "warnings", "patches", "seconds", "error"}`.
+/// "warnings", "patches", "code", "code_changed", "seconds", "error"}`;
+/// `code` counts the modules of mods now in the title's exefs folder.
 #[no_mangle]
 pub unsafe extern "C" fn tkmc_apply(
     rom_prefix: *const c_char,
@@ -709,6 +712,8 @@ pub unsafe extern "C" fn tkmc_apply(
         .field_num("served", outcome.redirects.len() as i64)
         .field_num("warnings", outcome.warnings as i64)
         .field_num("patches", outcome.patches.len() as i64)
+        .field_num("code", outcome.code_installed as i64)
+        .field_bool("code_changed", outcome.code_changed)
         .field_tenths("seconds", started.elapsed_secs())
         .field_opt_str("error", outcome.error.as_deref())
         .end_object();

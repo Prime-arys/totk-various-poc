@@ -18,7 +18,7 @@ then build the two packs.
 
 | Directory | What it holds |
 |---|---|
-| `output/` | everything transient. `output/build` is the Meson directory, `output/cargo` cargo's output, `output/skyline` the object files and the `.nso` of skyline-totk, `output/manager` cmake + borealis + the Rust core, `output/dotnet` the .NET output of the packager and of TkSharp, `output/tmp` the scratch files. |
+| `output/` | everything transient. `output/build` is the Meson directory, `output/cargo` cargo's output, `output/skyline` the object files and the `.nso` of skyline-totk, `output/manager` cmake + borealis + the Rust core, `output/dotnet` the .NET output of the packager and of TkSharp, `output/exlaunch` the copy of exlaunch a module is compiled in, `output/tmp` the scratch files. |
 | `release/` | what is finished: `release/pack-switch`, `release/pack-emulator`, `release/plugins/*.nro`, `release/mods/<mod>/`. |
 
 No other directory of the repository is written to. That is what makes cleaning obvious:
@@ -39,6 +39,7 @@ Nothing else is removed: the sources, the submodules and the Docker image stay. 
 ./build.sh pack-emulator            # release/pack-emulator/
 ./build.sh plugins                  # release/plugins/{enemy-hp,online-example}.nro
 ./build.sh --romfs <folder> mod     # release/mods/EnemyHp/
+./build.sh --romfs <folder> mod-se  # release/mods/EnemyHpSe/ (mods: both)
 ./build.sh test                     # the tests of the crates, on the PC
 ./build.sh doctor                   # what the image holds
 ./build.sh shell                    # a shell inside the container
@@ -62,6 +63,20 @@ The options:
 The options passed on to Meson (`--romfs`, `--zip`, `--title-id`) are remembered in
 `output/build`: once given, they stay until they are changed or until a clean.
 
+## The submodules
+
+| Submodule | What for |
+|---|---|
+| `totk-mod-manager/library/borealis` | the homebrew's interface |
+| `utils/TkSharp` | TKMM's own code, which packages the `.tkcl` of the mods (through `utils/tkmm-oracle`) |
+| `utils/exlaunch` | the framework the exefs module of EnemyHp SE is built with |
+
+`build.sh` fetches them when one is empty. Updating one is git's business
+(`git -C utils/TkSharp pull`, or `git submodule update --remote utils/TkSharp`); the packager is
+built again by itself the next time a mod is, as soon as a file of TkSharp has changed. exlaunch
+is never built in place: a copy of it is laid out in `output/exlaunch/<module>` with the module's
+sources, and compiled there ([`utils/build-exlaunch.sh`](../utils/build-exlaunch.sh)).
+
 ## What each target does
 
 | Target | What runs | Where it works |
@@ -71,6 +86,7 @@ The options passed on to Meson (`--romfs`, `--zip`, `--title-id`) are remembered
 | `totk-mod-manager` | cargo (the `no_std` core), then cmake + make (borealis, deko3d) | `output/manager` |
 | `enemy-hp.nro`, `online-example.nro` | as for the merger | `output/cargo` |
 | `mod` | `totk-merge`'s examples read the romfs, `tkmm-oracle` packages the `.tkcl` | `output/dotnet`, `output/tmp` |
+| `mod-se` | the same, plus exlaunch's `Makefile` (devkitA64) for the module that goes in the `.tkcl` | `output/exlaunch`, `output/dotnet`, `output/tmp` |
 | `pack-switch`, `pack-emulator` | laying out the files already built | writes into `release/` |
 
 Meson compiles nothing itself: it knows the targets, their order and the layout of a pack, and
@@ -105,7 +121,7 @@ ARMv9 instructions its JIT refuses replaced (see `totk-mod-manager/build.sh`).
 
 | Tool | What for |
 |---|---|
-| devkitPro (`devkitpro/devkita64`) + `switch-dev`, `uam` | `skyline-totk` and the homebrew |
+| devkitPro (`devkitpro/devkita64`) + `switch-dev`, `uam` | `skyline-totk`, the homebrew, and the exefs modules built with exlaunch |
 | `switch-glm`, `switch-curl`, `switch-libarchive` | the homebrew's libraries |
 | cmake, ninja, make, meson, python3, git | the build itself |
 | rustup + the nightly of the manager's core | `totk-mod-manager/core` |
@@ -131,12 +147,14 @@ whoever ran the command. On Windows, Docker Desktop takes care of it.
 | `docker not found` | install Docker Desktop (Windows, macOS) or the docker engine (Linux) |
 | `No space left on device` while `df` looks roomy | it is the Docker virtual machine's disk: `docker builder prune` and `docker image prune` free it |
 | `retrying (n): cargo skyline update-std` while building the image, then a failure | github is rate-limiting the address; start again later |
-| CMake cannot find borealis | the submodules are empty: `git submodule update --init` (`build.sh` does it by itself when it sees the empty directory) |
+| CMake cannot find borealis, `utils/TkSharp is empty`, `utils/exlaunch is empty` | a submodule is empty: `git submodule update --init` (`build.sh` does it by itself when it sees an empty one) |
 | `--romfs must point at an extracted TotK romfs` | `--romfs` missing, or the directory given does not exist |
 | `error: the build left no ...tkmm-oracle.dll` | image built with `--no-dotnet`: `./build.sh --rebuild-image` |
 | `cc1plus: ... Cannot allocate memory` while compiling borealis | too many compilers at once for the Docker virtual machine's memory. The script starts one per 1.5 GiB; to force it: `./build.sh -- bash -lc 'JOBS=4 meson compile -C output/build totk-mod-manager'`, or give Docker Desktop more memory |
-| a `meson setup` that ignores an option | `meson setup` on an already configured directory exits without an error and ignores the options; `build.sh` knows this and goes through `meson configure` — but if you run Meson by hand, that is the trap to know |
-| the command never returns although everything is built | a tool left a daemon behind that inherited the pipe ninja reads its command through, so ninja waits for an end-of-file that never comes. `dotnet build` did exactly that (four MSBuild nodes and the Roslyn server): `utils/build-enemy-hp-mod.sh` turns both off and sends the build's output to a file rather than a pipe |
+| a `meson setup` that ignores an option | `meson setup` on an already configured directory exits without an error and ignores the options; `build.sh` knows this and goes through `meson setup --reconfigure` — but if you run Meson by hand, that is the trap to know |
+| `Can't invoke target ...: target not found` right after adding a target | `meson compile` checks the name against what the last configuration knew, before ninja gets a chance to notice the changed `meson.build`: `meson setup --reconfigure output/build` (which `build.sh` runs every time) |
+| the command never returns although everything is built | a tool left a daemon behind that inherited the pipe ninja reads its command through, so ninja waits for an end-of-file that never comes. `dotnet build` did exactly that (four MSBuild nodes and the Roslyn server): `utils/build-mod.sh` turns both off and sends the build's output to a file rather than a pipe |
+| a warning about exlaunch's own code while building a module | expected: each new GCC finds something to say about it, which is why `utils/build-exlaunch.sh` turns its `-Werror` off. Only the warnings of the module's own sources are shown |
 | the homebrew crashes at startup under Ryujinx | the console build is being used: take `totk-mod-manager-ryujinx.nro` |
 
 ## Without `build.sh`
@@ -157,5 +175,7 @@ utils/doctor.sh
 utils/build-skyline.sh --out /tmp/exefs
 utils/build-nro.sh totk-mod-merger-plugin --out /tmp/merger.nro
 utils/build-manager.sh --out /tmp/manager
-utils/build-enemy-hp-mod.sh --romfs /romfs --out /tmp/EnemyHp
+utils/build-mod.sh EnemyHp --script plugins/enemy-hp/build-mod.sh --romfs /romfs --out /tmp/EnemyHp
+utils/build-mod.sh EnemyHpSe --script mods/enemy-hp-se/build-mod.sh --romfs /romfs --out /tmp/EnemyHpSe
+utils/build-exlaunch.sh enemy-hp-se --source mods/enemy-hp-se/source --out /tmp/exefs
 ```
